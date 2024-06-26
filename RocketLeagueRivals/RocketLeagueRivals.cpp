@@ -22,7 +22,7 @@ bool showAllWinsLosesStatsEnabled = false;
 bool showDemoStatsEnabled = false;
 
 void LogToFile(const std::string& message) {
-    //if (!loggingEnabled) return;
+    if (!loggingEnabled) return;
     if (!_globalCvarManager) return; // Ensure _globalCvarManager is valid
     _globalCvarManager->log(message);
     std::string logPath = dataFolder + "/rivals/rocketleaguerivals.log";
@@ -412,9 +412,13 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     bool isMyTeam) {
 
     // Determine background height based on the number of lines
-    int adjustedPlayerHeight = playerHeight + lineHeight + padding;
+    int adjustedPlayerHeight = playerHeight;
     if (showAllWinsLosesStatsEnabled) {
         adjustedPlayerHeight += lineHeight + padding; // Extra line for additional stats
+    }
+
+    if (showDemoStatsEnabled) {
+        adjustedPlayerHeight += lineHeight; // Extra line for additional stats
     }
 
     // Draw background rectangle
@@ -423,7 +427,7 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
 
     // Draw player name in white
     canvas.SetColor(255, 255, 255, 255); // White
-    std::string displayName = player.name.length() > 15 ? player.name.substr(0, 12) + "..." : player.name;
+    std::string displayName = player.name.length() > 18 ? player.name.substr(0, 15) + "..." : player.name;
     std::stringstream ss;
     ss << displayName;
     canvas.SetPosition(Vector2(xOffset + 5, yOffset));
@@ -442,6 +446,11 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
 
     // Determine color and draw other stats
     if (showAllWinsLosesStatsEnabled) {
+        float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
+        float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
+        std::stringstream ssWinWithPercentage;
+        ssWinWithPercentage << "Won with" << ": " << std::fixed << std::setprecision(1) << winWithPercentage << "%";
+
         // Draw "wins with/losses with" stats
         if (player.winsWith == 0 && player.lossesWith == 0) {
             canvas.SetColor(255, 255, 255, 255); // White
@@ -452,11 +461,14 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
         else {
             canvas.SetColor(255, 165, 0, 255); // Orange
         }
-        std::stringstream ssWith;
-        ssWith << "WW: " << player.winsWith << "   LW: " << player.lossesWith;
         canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-        canvas.DrawString(ssWith.str(), statFontSize, statFontScale);
+        canvas.DrawString(ssWinWithPercentage.str(), statFontSize, statFontScale);
         yOffset += lineHeight;
+
+        float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
+        float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
+        std::stringstream ssWinAgainstPercentage;
+        ssWinAgainstPercentage << "Won against" << ": " << std::fixed << std::setprecision(1) << winAgainstPercentage << "%";
 
         // Draw "wins against/losses against" stats
         if (player.winsAgainst == 0 && player.lossesAgainst == 0) {
@@ -468,13 +480,17 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
         else {
             canvas.SetColor(255, 0, 0, 255); // Red
         }
-        std::stringstream ssAgainst;
-        ssAgainst << "WA: " << player.winsAgainst << "   LA: " << player.lossesAgainst;
         canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-        canvas.DrawString(ssAgainst.str(), statFontSize, statFontScale);
+        canvas.DrawString(ssWinAgainstPercentage.str(), statFontSize, statFontScale);
     }
     else {
         if (isMyTeam) {
+            float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
+            float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
+            std::stringstream ssWinWithPercentage;
+            ssWinWithPercentage << "Won with" << ": " << std::fixed << std::setprecision(1) << winWithPercentage << "%";
+
+            // Draw "wins with/losses with" stats
             if (player.winsWith == 0 && player.lossesWith == 0) {
                 canvas.SetColor(255, 255, 255, 255); // White
             }
@@ -484,12 +500,16 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
             else {
                 canvas.SetColor(255, 165, 0, 255); // Orange
             }
-            std::stringstream ss2;
-            ss2 << "WW: " << player.winsWith << "   LW: " << player.lossesWith;
             canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-            canvas.DrawString(ss2.str(), statFontSize, statFontScale);
+            canvas.DrawString(ssWinWithPercentage.str(), statFontSize, statFontScale);
         }
         else {
+            float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
+            float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
+            std::stringstream ssWinAgainstPercentage;
+            ssWinAgainstPercentage << "Won against" << ": " << std::fixed << std::setprecision(1) << winAgainstPercentage << "%";
+
+            // Draw "wins against/losses against" stats
             if (player.winsAgainst == 0 && player.lossesAgainst == 0) {
                 canvas.SetColor(255, 255, 255, 255); // White
             }
@@ -499,10 +519,8 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
             else {
                 canvas.SetColor(255, 0, 0, 255); // Red
             }
-            std::stringstream ss2;
-            ss2 << "WA: " << player.winsAgainst << "   LA: " << player.lossesAgainst;
             canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-            canvas.DrawString(ss2.str(), statFontSize, statFontScale);
+            canvas.DrawString(ssWinAgainstPercentage.str(), statFontSize, statFontScale);
         }
     }
     yOffset += lineHeight + padding;
