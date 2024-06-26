@@ -75,9 +75,6 @@ build/
 *.qbs.user.*
 
 # Visual Studio
-*.vcxproj*
-*.vcproj*
-*.user
 *.userosscache
 *.suo
 *.opensdf
@@ -86,7 +83,6 @@ build/
 *.aps
 *.ncb
 *.opendb
-*.vcxproj.filters
 
 # Code::Blocks
 *.depend
