@@ -1,0 +1,106 @@
+# General
+.DS_Store
+Thumbs.db
+
+# Compiled Object files
+*.obj
+*.o
+*.lo
+*.la
+*.al
+*.libs
+*.a
+*.lai
+*.slo
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Generated files
+*.ii
+*.ti
+*.log
+
+# IDE files
+.vscode/
+.vs/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+.idea/
+*.iml
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+build/
+
+# QtCreator
+*.autosave
+*.layout
+*.creator*
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+
+# Visual Studio
+*.vcxproj*
+*.vcproj*
+*.user
+*.userosscache
+*.suo
+*.opensdf
+*.sdf
+*.ipch
+*.aps
+*.ncb
+*.opendb
+*.vcxproj.filters
+
+# Code::Blocks
+*.depend
+*.layout
+
+# Eclipse
+.settings/
+.cproject
+.project
+
+# NetBeans
+nbproject/private/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+/plugins
