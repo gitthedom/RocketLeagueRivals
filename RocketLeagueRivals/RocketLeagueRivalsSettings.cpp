@@ -34,7 +34,7 @@ void RocketLeagueRivals::RenderSettings() {
         ImGui::SetTooltip("Hides stats from Rival team. You would only see your team if it is enabled.");
     }
 
-    CVarWrapper enableShowAllStatsCvar = cvarManager->getCvar("show_all_stats_enabled");
+    CVarWrapper enableShowAllStatsCvar = cvarManager->getCvar("show_all_winsloses_stats_enabled");
     if (!enableShowAllStatsCvar) { return; }
     bool enabledAllStats = enableShowAllStatsCvar.getBoolValue();
     if (ImGui::Checkbox("Show both wins/loses with/against", &enabledAllStats)) {
@@ -42,6 +42,16 @@ void RocketLeagueRivals::RenderSettings() {
     }
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Shows both wins and loses with and against no matter what team they are on.");
+    }
+
+    CVarWrapper enableShowDemoStatsCvar = cvarManager->getCvar("show_demo_stats_enabled");
+    if (!enableShowDemoStatsCvar) { return; }
+    bool enabledDemoStats = enableShowDemoStatsCvar.getBoolValue();
+    if (ImGui::Checkbox("Show demo stats", &enabledDemoStats)) {
+        enableShowDemoStatsCvar.setValue(enabledDemoStats);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Shows stats on demos received and given to and from another player.");
     }
 
     ImGui::TextUnformatted("Debug Settings");

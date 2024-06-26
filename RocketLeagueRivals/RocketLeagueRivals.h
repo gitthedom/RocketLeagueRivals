@@ -27,6 +27,8 @@ struct PlayerInfo {
     int lossesAgainst;
     int team;
     std::string timestamp;
+    int demosGiven;
+    int demosReceived;
 
     // Convert PlayerInfo to JSON
     json to_json() const {
@@ -37,7 +39,9 @@ struct PlayerInfo {
             {"winsAgainst", winsAgainst},
             {"lossesAgainst", lossesAgainst},
             {"team", team},
-            {"timestamp", timestamp}
+            {"timestamp", timestamp},
+            {"demosGiven", demosGiven},
+            {"demosReceived", demosReceived}
         };
     }
 
@@ -50,7 +54,9 @@ struct PlayerInfo {
             j.at("winsAgainst").get<int>(),
             j.at("lossesAgainst").get<int>(),
             j.at("team").get<int>(),
-            j.at("timestamp").get<std::string>()
+            j.at("timestamp").get<std::string>(),
+            j.at("demosGiven").get<int>(),
+            j.at("demosReceived").get<int>()
         };
     }
 };
@@ -58,6 +64,12 @@ struct PlayerInfo {
 struct TriggerGoalScoreParams {
     int TeamScoredOn;
     uintptr_t Scorer;
+};
+
+struct StatTickerParams {
+    uintptr_t Receiver;
+    uintptr_t Victim;
+    uintptr_t StatEvent;
 };
 
 class RocketLeagueRivals : public BakkesMod::Plugin::BakkesModPlugin,
@@ -70,19 +82,28 @@ private:
     int myTeam;
     bool matchStarted = false;
 
+    bool rightAlignEnabled = false;
+    bool loggingEnabled = false;
+    bool hideMyTeamEnabled = false;
+    bool hideRivalTeamEnabled = false;
+    bool showAllStatsEnabled = false;
+
     void OnMatchStarted(ServerWrapper server);
     void OnMatchEnded(ServerWrapper server);
     void Render(CanvasWrapper canvas);
     void ReadJSON();
     void WriteJSON();
     bool DidWin(ServerWrapper server);
+    void KeepScore(ServerWrapper server, void* params);
+    void OnStatTickerMessage(ServerWrapper caller, void* params, std::string eventname);
+    void RecordDemo(const std::string& receiverName, const std::string& victimName);
+
     struct TeamScores {
         int team0Score = 0;
         int team1Score = 0;
     };
 
     TeamScores scores;
-    void KeepScore(ServerWrapper server, void* params);
 
     // Helper functions for rendering
     void DrawHeader(CanvasWrapper& canvas, const std::string& text, int xOffset, int& yOffset, int width, int headerHeight, int padding, float fontSize, float fontScale);
