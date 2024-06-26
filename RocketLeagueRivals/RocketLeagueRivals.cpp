@@ -5,6 +5,7 @@
 #include "bakkesmod/wrappers/GameObject/PriWrapper.h"
 #include "bakkesmod/wrappers/GameObject/CarWrapper.h"
 #include "bakkesmod/wrappers/Engine/EngineTAWrapper.h"
+#include "bakkesmod/wrappers/GameObject/Stats/StatEventWrapper.h"
 #include <ctime>
 
 BAKKESMOD_PLUGIN(RocketLeagueRivals, "Track player interactions in Rocket League", plugin_version, PLUGINTYPE_FREEPLAY)
@@ -17,10 +18,11 @@ bool rightAlignEnabled = false;
 bool loggingEnabled = false;
 bool hideMyTeamEnabled = false;
 bool hideRivalTeamEnabled = false;
-bool showAllStatsEnabled = false;
+bool showAllWinsLosesStatsEnabled = false;
+bool showDemoStatsEnabled = false;
 
 void LogToFile(const std::string& message) {
-    if (!loggingEnabled) return;
+    //if (!loggingEnabled) return;
     if (!_globalCvarManager) return; // Ensure _globalCvarManager is valid
     _globalCvarManager->log(message);
     std::string logPath = dataFolder + "/rivals/rocketleaguerivals.log";
@@ -53,9 +55,14 @@ void RocketLeagueRivals::onLoad() {
         hideRivalTeamEnabled = cvar.getBoolValue();
             });
 
-    cvarManager->registerCvar("show_all_stats_enabled", "0", "Enable Show All Stats", true, true, 0, true, 1)
+    cvarManager->registerCvar("show_all_winsloses_stats_enabled", "0", "Enable Show All Wins/Loses Stats", true, true, 0, true, 1)
         .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        showAllStatsEnabled = cvar.getBoolValue();
+        showAllWinsLosesStatsEnabled = cvar.getBoolValue();
+            });
+
+    cvarManager->registerCvar("show_demo_stats_enabled", "0", "Enable Demo Stats", true, true, 0, true, 1)
+        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+        showDemoStatsEnabled = cvar.getBoolValue();
             });
 
     LogToFile("RocketLeagueRivals plugin loaded");
@@ -67,6 +74,7 @@ void RocketLeagueRivals::onLoad() {
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.AchievementSystem_TA.CheckWonMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this, std::placeholders::_1));
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxShell_TA.LeaveMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this, std::placeholders::_1));
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent", std::bind(&RocketLeagueRivals::KeepScore, this, std::placeholders::_1, std::placeholders::_2));
+    gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxHUD_TA.HandleStatTickerMessage", std::bind(&RocketLeagueRivals::OnStatTickerMessage, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     gameWrapper->RegisterDrawable(std::bind(&RocketLeagueRivals::Render, this, std::placeholders::_1));
 }
 
@@ -77,6 +85,7 @@ void RocketLeagueRivals::onUnload() {
     gameWrapper->UnhookEvent("Function TAGame.AchievementSystem_TA.CheckWonMatch");
     gameWrapper->UnhookEvent("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent");
     gameWrapper->UnhookEvent("Function TAGame.GFxShell_TA.LeaveMatch");
+    gameWrapper->UnhookEvent("Function TAGame.GFxHUD_TA.HandleStatTickerMessage");
 }
 
 void RocketLeagueRivals::ReadJSON() {
@@ -229,6 +238,34 @@ void RocketLeagueRivals::OnMatchEnded(ServerWrapper server) {
     activePlayers.clear(); // Clear active players at the end of each match
 }
 
+void RocketLeagueRivals::OnStatTickerMessage(ServerWrapper caller, void* params, std::string eventname) {
+    StatTickerParams* pStruct = reinterpret_cast<StatTickerParams*>(params);
+    PriWrapper receiver = PriWrapper(pStruct->Receiver);
+    PriWrapper victim = PriWrapper(pStruct->Victim);
+    StatEventWrapper statEvent = StatEventWrapper(pStruct->StatEvent);
+
+    if (statEvent.GetEventName() == "Demolish") {
+        std::string receiverName = receiver.GetPlayerName().ToString();
+        std::string victimName = victim.GetPlayerName().ToString();
+
+        RecordDemo(receiverName, victimName);
+    }
+}
+
+void RocketLeagueRivals::RecordDemo(const std::string& receiverName, const std::string& victimName) {
+    if (receiverName == localPlayerName) {
+        if (activePlayers.find(victimName) != activePlayers.end()) {
+            activePlayers[victimName].demosGiven++;
+            LogToFile(victimName + " demos given: " + std::to_string(activePlayers[victimName].demosGiven));
+        }
+    }
+    else if (victimName == localPlayerName) {
+        if (activePlayers.find(receiverName) != activePlayers.end()) {
+            activePlayers[receiverName].demosReceived++;
+            LogToFile(receiverName + " demos received: " + std::to_string(activePlayers[receiverName].demosReceived));
+        }
+    }
+}
 
 void RocketLeagueRivals::KeepScore(ServerWrapper caller, void* params) {
     TriggerGoalScoreParams* goalParams = reinterpret_cast<TriggerGoalScoreParams*>(params);
@@ -375,8 +412,8 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     bool isMyTeam) {
 
     // Determine background height based on the number of lines
-    int adjustedPlayerHeight = playerHeight;
-    if (showAllStatsEnabled) {
+    int adjustedPlayerHeight = playerHeight + lineHeight + padding;
+    if (showAllWinsLosesStatsEnabled) {
         adjustedPlayerHeight += lineHeight + padding; // Extra line for additional stats
     }
 
@@ -393,8 +430,18 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     canvas.DrawString(ss.str(), playerFontSize, playerFontScale);
     yOffset += lineHeight;
 
-    // Determine color and draw stats
-    if (showAllStatsEnabled) {
+    // Draw demos given (DG) and demos received (DR) in white
+    if (showDemoStatsEnabled) {
+        std::stringstream ssDemos;
+        ssDemos << "DG: " << player.demosGiven << "   DR: " << player.demosReceived;
+        canvas.SetColor(255, 255, 255, 255); // White
+        canvas.SetPosition(Vector2(xOffset + 10, yOffset));
+        canvas.DrawString(ssDemos.str(), statFontSize, statFontScale);
+        yOffset += lineHeight;
+    }
+
+    // Determine color and draw other stats
+    if (showAllWinsLosesStatsEnabled) {
         // Draw "wins with/losses with" stats
         if (player.winsWith == 0 && player.lossesWith == 0) {
             canvas.SetColor(255, 255, 255, 255); // White
