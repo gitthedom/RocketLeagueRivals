@@ -8,7 +8,7 @@
 #include "bakkesmod/wrappers/Engine/EngineTAWrapper.h"
 #include "bakkesmod/wrappers/GameObject/Stats/StatEventWrapper.h"
 #include <ctime>
-#include <filesystem> // for std::filesystem::create_directories
+#include <filesystem>
 
 namespace fs = std::filesystem;
 
@@ -28,7 +28,7 @@ bool showAllWinsLosesStatsEnabled = false;
 bool showDemoStatsEnabled = false;
 
 void LogToFile(const std::string& message) {
-    if (!_globalCvarManager) return; // Ensure _globalCvarManager is valid
+    if (!_globalCvarManager) return;
     _globalCvarManager->log(message);
     if (!loggingEnabled) return;
 
@@ -43,7 +43,6 @@ void RocketLeagueRivals::onLoad() {
     playerDataFolder = dataFolder + "/rivals/players";
     logPath = dataFolder + "/rivals/rocketleaguerivals.log";
 
-    // Ensure the players directory exists
     if (fs::create_directories(playerDataFolder)) {
         LogToFile("Created player data directory: " + playerDataFolder);
     }
@@ -121,7 +120,7 @@ void RocketLeagueRivals::WriteJSON() {
         }
         LogToFile(filePath);
         json j = player.to_json();
-        outputFile << j.dump(4); // Pretty print with 4-space indent
+        outputFile << j.dump(4);
         outputFile.close();
     }
 
@@ -178,11 +177,11 @@ void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
 
         if (playerName == localPlayerName) {
             myTeam = pri.GetTeamNum();
-            continue; // Skip the local player
         }
 
+        if (playerName == localPlayerName) continue;
+
         if (activePlayers.find(playerName) == activePlayers.end()) {
-            // Player is not in activePlayers, check if file exists
             std::string filePath = playerDataFolder + "/" + sanitizedPlayerName + ".json";
             if (fs::exists(filePath)) {
                 std::ifstream file(filePath);
@@ -197,7 +196,6 @@ void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
                 }
             }
             else {
-                // If the player file doesn't exist, add new entry to activePlayers
                 activePlayers[playerName] = PlayerInfo{ playerName, 0, 0, 0, 0, pri.GetTeamNum(), timestamp, 0, 0 };
             }
         }
@@ -212,7 +210,7 @@ void RocketLeagueRivals::OnMatchEnded(ServerWrapper server) {
 
     for (auto& [name, player] : activePlayers) {
         if (name == localPlayerName) {
-            continue; // Skip the local player
+            continue;
         }
 
         if (player.team == myTeam) {
@@ -234,8 +232,8 @@ void RocketLeagueRivals::OnMatchEnded(ServerWrapper server) {
     }
 
     WriteJSON();
-    activePlayers.clear(); // Clear active players at the end of each match
-    scores = { 0, 0 }; // Reset the scores at the end of each match
+    activePlayers.clear();
+    scores = { 0, 0 };
 }
 
 void RocketLeagueRivals::OnStatTickerMessage(ServerWrapper caller, void* params, std::string eventname) {
@@ -285,7 +283,7 @@ bool RocketLeagueRivals::DidWin(ServerWrapper server) {
         return false;
     }
 
-    int localTeam = myTeam; // This should be set correctly in your OnMatchStarted function
+    int localTeam = myTeam;
 
     bool won = (localTeam == 0 && scores.team0Score > scores.team1Score) || (localTeam == 1 && scores.team1Score > scores.team0Score);
 
@@ -318,18 +316,15 @@ void RocketLeagueRivals::Render(CanvasWrapper canvas) {
         return;
     }
 
-    // Get canvas size
     Vector2 canvasSize = canvas.GetSize();
     int canvasHeight = canvasSize.Y;
 
-    // Set the x position for the left placement
-    int xOffset = 20; // Adjust this value to fit your text properly
+    int xOffset = 20;
     if (rightAlignEnabled) {
-        xOffset = canvasSize.X - 220; // Adjust for right alignment
+        xOffset = canvasSize.X - 220;
     }
-    int yOffset = canvasHeight / 2 - ((players.Count() * 60) / 2); // Centering vertically
+    int yOffset = canvasHeight / 2 - ((players.Count() * 60) / 2);
 
-    // Separate players into teams
     std::vector<PlayerInfo> myTeamPlayers;
     std::vector<PlayerInfo> rivalTeamPlayers;
 
@@ -342,7 +337,7 @@ void RocketLeagueRivals::Render(CanvasWrapper canvas) {
 
         std::string playerName = pri.GetPlayerName().ToString();
         if (playerName == localPlayerName) {
-            continue; // Skip the local player
+            continue;
         }
 
         if (activePlayers.find(playerName) != activePlayers.end()) {
@@ -356,173 +351,92 @@ void RocketLeagueRivals::Render(CanvasWrapper canvas) {
         }
     }
 
-    float headerFontSize = 2.0f;
-    float headerFontScale = 2.0f;
-    float playerFontSize = 1.5f;
-    float playerFontScale = 1.5f;
-
-    float statFontSize = 1.2f;
-    float statFontScale = 1.2f;
-
-    int padding = 0;
-    int lineHeight = 20;
-    int headerHeight = 30;
-    int playerHeight = lineHeight * 2 + padding;
-
-    int width = 200;
-
     if (!hideMyTeamEnabled) {
-        RenderTeam(canvas, "My Team", myTeamPlayers, xOffset, yOffset, width, headerHeight, playerHeight, lineHeight, padding, headerFontSize, headerFontScale, playerFontSize, playerFontScale, statFontSize, statFontScale, true);
+        RenderTeam(canvas, "My Team", myTeamPlayers, xOffset, yOffset, true);
     }
     if (!hideRivalTeamEnabled) {
-        RenderTeam(canvas, "Rival Team", rivalTeamPlayers, xOffset, yOffset, width, headerHeight, playerHeight, lineHeight, padding, headerFontSize, headerFontScale, playerFontSize, playerFontScale, statFontSize, statFontScale, false);
+        RenderTeam(canvas, "Rival Team", rivalTeamPlayers, xOffset, yOffset, false);
     }
 }
 
 void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas,
     const std::string& text,
     int xOffset,
-    int& yOffset,
-    int width,
-    int headerHeight,
-    int padding,
-    float fontSize,
-    float fontScale) {
-    canvas.SetColor(0, 0, 0, 128); // Transparent black background
-    canvas.DrawRect(Vector2(xOffset - padding, yOffset - padding), Vector2(xOffset + width + padding, yOffset + headerHeight + padding));
-    canvas.SetColor(255, 255, 255, 255); // White color for header
+    int& yOffset) {
+    const RenderConfig& config = renderConfig;
+    canvas.SetColor(0, 0, 0, 128);
+    canvas.DrawRect(Vector2(xOffset - config.padding, yOffset - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + config.headerHeight + config.padding));
+    canvas.SetColor(255, 255, 255, 255);
     canvas.SetPosition(Vector2(xOffset + 5, yOffset));
+    canvas.DrawString(text, config.headerFontSize, config.headerFontScale);
+    yOffset += config.headerHeight + config.padding * 2;
+}
+
+void DrawText(CanvasWrapper& canvas, const std::string& text, int x, int y, float fontSize, float fontScale, int r, int g, int b, int a) {
+    canvas.SetColor(r, g, b, a);
+    canvas.SetPosition(Vector2(x, y));
     canvas.DrawString(text, fontSize, fontScale);
-    yOffset += headerHeight + padding * 2;
+}
+
+void DrawStat(CanvasWrapper& canvas, const std::string& label, float statValue, int x, int& y, float fontSize, float fontScale, const std::tuple<int, int, int, int>& color, int lineHeight) {
+    std::stringstream ss;
+    ss << label << ": " << std::fixed << std::setprecision(1) << statValue << "%";
+    DrawText(canvas, ss.str(), x, y, fontSize, fontScale, std::get<0>(color), std::get<1>(color), std::get<2>(color), std::get<3>(color));
+}
+
+std::tuple<int, int, int, int> GetStatColor(int wins, int losses, const std::tuple<int, int, int, int>& defaultColor, const std::tuple<int, int, int, int>& winColor, const std::tuple<int, int, int, int>& lossColor) {
+    if (wins == 0 && losses == 0) {
+        return defaultColor;
+    }
+    return wins > losses ? winColor : lossColor;
 }
 
 void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     const PlayerInfo& player,
     int xOffset,
     int& yOffset,
-    int width,
-    int playerHeight,
-    int lineHeight,
-    int padding,
-    float playerFontSize,
-    float playerFontScale,
-    float statFontSize,
-    float statFontScale,
     bool isMyTeam) {
+    const RenderConfig& config = renderConfig;
 
-    // Determine background height based on the number of lines
-    int adjustedPlayerHeight = playerHeight;
+    int adjustedPlayerHeight = config.playerHeight;
     if (showAllWinsLosesStatsEnabled) {
-        adjustedPlayerHeight += lineHeight + padding; // Extra line for additional stats
+        adjustedPlayerHeight += config.lineHeight + config.padding;
     }
-
     if (showDemoStatsEnabled) {
-        adjustedPlayerHeight += lineHeight; // Extra line for additional stats
+        adjustedPlayerHeight += config.lineHeight;
     }
 
-    // Draw background rectangle
-    canvas.SetColor(0, 0, 0, 128); // Transparent black background
-    canvas.DrawRect(Vector2(xOffset - padding, yOffset - padding), Vector2(xOffset + width + padding, yOffset + adjustedPlayerHeight));
+    canvas.SetColor(0, 0, 0, 128);
+    canvas.DrawRect(Vector2(xOffset - config.padding, yOffset - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + adjustedPlayerHeight));
 
-    // Draw player name in white
-    canvas.SetColor(255, 255, 255, 255); // White
     std::string displayName = player.name.length() > 18 ? player.name.substr(0, 15) + "..." : player.name;
-    std::stringstream ss;
-    ss << displayName;
-    canvas.SetPosition(Vector2(xOffset + 5, yOffset));
-    canvas.DrawString(ss.str(), playerFontSize, playerFontScale);
-    yOffset += lineHeight;
+    DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 255, 255, 255, 255);
+    yOffset += config.lineHeight;
 
-    // Draw demos given (DG) and demos received (DR) in white
     if (showDemoStatsEnabled) {
         std::stringstream ssDemos;
         ssDemos << "DG: " << player.demosGiven << "   DR: " << player.demosReceived;
-        canvas.SetColor(255, 255, 255, 255); // White
-        canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-        canvas.DrawString(ssDemos.str(), statFontSize, statFontScale);
-        yOffset += lineHeight;
+        DrawText(canvas, ssDemos.str(), xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 255, 255, 255, 255);
+        yOffset += config.lineHeight;
     }
 
-    // Determine color and draw other stats
-    if (showAllWinsLosesStatsEnabled) {
+    if (showAllWinsLosesStatsEnabled || isMyTeam) {
         float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
         float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
-        std::stringstream ssWinWithPercentage;
-        ssWinWithPercentage << "Won with" << ": " << std::fixed << std::setprecision(1) << winWithPercentage << "%";
+        auto color = GetStatColor(player.winsWith, player.lossesWith, { 255, 255, 255, 255 }, { 56, 142, 235, 255 }, { 255, 165, 0, 255 });
+        DrawStat(canvas, "Won with", winWithPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
+    }
 
-        // Draw "wins with/losses with" stats
-        if (player.winsWith == 0 && player.lossesWith == 0) {
-            canvas.SetColor(255, 255, 255, 255); // White
-        }
-        else if (player.winsWith > player.lossesWith) {
-            canvas.SetColor(56, 142, 235, 255); // Blue
-        }
-        else {
-            canvas.SetColor(255, 165, 0, 255); // Orange
-        }
-        canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-        canvas.DrawString(ssWinWithPercentage.str(), statFontSize, statFontScale);
-        yOffset += lineHeight;
+    if (showAllWinsLosesStatsEnabled) yOffset += config.lineHeight;
 
+    if (showAllWinsLosesStatsEnabled || !isMyTeam) {
         float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
         float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
-        std::stringstream ssWinAgainstPercentage;
-        ssWinAgainstPercentage << "Won against" << ": " << std::fixed << std::setprecision(1) << winAgainstPercentage << "%";
-
-        // Draw "wins against/losses against" stats
-        if (player.winsAgainst == 0 && player.lossesAgainst == 0) {
-            canvas.SetColor(255, 255, 255, 255); // White
-        }
-        else if (player.winsAgainst > player.lossesAgainst) {
-            canvas.SetColor(0, 255, 0, 255); // Green
-        }
-        else {
-            canvas.SetColor(255, 0, 0, 255); // Red
-        }
-        canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-        canvas.DrawString(ssWinAgainstPercentage.str(), statFontSize, statFontScale);
+        auto color = GetStatColor(player.winsAgainst, player.lossesAgainst, { 255, 255, 255, 255 }, { 0, 255, 0, 255 }, { 255, 0, 0, 255 });
+        DrawStat(canvas, "Won against", winAgainstPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
     }
-    else {
-        if (isMyTeam) {
-            float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
-            float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
-            std::stringstream ssWinWithPercentage;
-            ssWinWithPercentage << "Won with" << ": " << std::fixed << std::setprecision(1) << winWithPercentage << "%";
 
-            // Draw "wins with/losses with" stats
-            if (player.winsWith == 0 && player.lossesWith == 0) {
-                canvas.SetColor(255, 255, 255, 255); // White
-            }
-            else if (player.winsWith > player.lossesWith) {
-                canvas.SetColor(56, 142, 235, 255); // Blue
-            }
-            else {
-                canvas.SetColor(255, 165, 0, 255); // Orange
-            }
-            canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-            canvas.DrawString(ssWinWithPercentage.str(), statFontSize, statFontScale);
-        }
-        else {
-            float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
-            float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
-            std::stringstream ssWinAgainstPercentage;
-            ssWinAgainstPercentage << "Won against" << ": " << std::fixed << std::setprecision(1) << winAgainstPercentage << "%";
-
-            // Draw "wins against/losses against" stats
-            if (player.winsAgainst == 0 && player.lossesAgainst == 0) {
-                canvas.SetColor(255, 255, 255, 255); // White
-            }
-            else if (player.winsAgainst > player.lossesAgainst) {
-                canvas.SetColor(0, 255, 0, 255); // Green
-            }
-            else {
-                canvas.SetColor(255, 0, 0, 255); // Red
-            }
-            canvas.SetPosition(Vector2(xOffset + 10, yOffset));
-            canvas.DrawString(ssWinAgainstPercentage.str(), statFontSize, statFontScale);
-        }
-    }
-    yOffset += lineHeight + padding;
+    yOffset += config.lineHeight + config.padding;
 }
 
 void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas,
@@ -530,23 +444,12 @@ void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas,
     const std::vector<PlayerInfo>& players,
     int xOffset,
     int& yOffset,
-    int width,
-    int headerHeight,
-    int playerHeight,
-    int lineHeight,
-    int padding,
-    float headerFontSize,
-    float headerFontScale,
-    float playerFontSize,
-    float playerFontScale,
-    float statFontSize,
-    float statFontScale,
     bool isMyTeam) {
     if (!players.empty()) {
-        DrawHeader(canvas, header, xOffset, yOffset, width, headerHeight, padding, headerFontSize, headerFontScale);
+        DrawHeader(canvas, header, xOffset, yOffset);
         for (const auto& player : players) {
-            DrawPlayerInfo(canvas, player, xOffset, yOffset, width, playerHeight, lineHeight, padding, playerFontSize, playerFontScale, statFontSize, statFontScale, isMyTeam);
+            DrawPlayerInfo(canvas, player, xOffset, yOffset, isMyTeam);
         }
-        yOffset += headerHeight; // Extra space between teams
+        yOffset += renderConfig.headerHeight;
     }
 }
