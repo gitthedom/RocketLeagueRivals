@@ -13,6 +13,7 @@ BAKKESMOD_PLUGIN(RocketLeagueRivals, "Track player interactions in Rocket League
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 std::string dataFolder;
 std::string localPlayerName;
+std::string logPath = dataFolder + "/rivals/rocketleaguerivals.log";
 
 bool rightAlignEnabled = false;
 bool loggingEnabled = false;
@@ -22,10 +23,11 @@ bool showAllWinsLosesStatsEnabled = false;
 bool showDemoStatsEnabled = false;
 
 void LogToFile(const std::string& message) {
+    _globalCvarManager->log(loggingEnabled ? "loggingEnabled true" : "loggingEnabled false");
     if (!loggingEnabled) return;
     if (!_globalCvarManager) return; // Ensure _globalCvarManager is valid
     _globalCvarManager->log(message);
-    std::string logPath = dataFolder + "/rivals/rocketleaguerivals.log";
+    
     std::ofstream logFile(logPath, std::ios_base::app);
     logFile << message << std::endl;
     logFile.close();
@@ -35,35 +37,23 @@ void RocketLeagueRivals::onLoad() {
     _globalCvarManager = cvarManager;
     dataFolder = gameWrapper->GetDataFolder().string();
 
-    cvarManager->registerCvar("align_display_right", "0", "Enable Right Side Render", true, true, 0, true, 1)
-        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        rightAlignEnabled = cvar.getBoolValue();
-            });
+    auto registerAndBindCvar = [&](const char* name, const char* defaultValue, const char* description, bool& variable) {
+        cvarManager->log(name);
+        cvarManager->log(cvarManager->getCvar(name) ? "true" : "false");
+        cvarManager->registerCvar(name, defaultValue, description, true, true, 0, true, 1)
+            .addOnValueChanged([&variable](std::string oldValue, CVarWrapper cvar) {
+            variable = cvar.getBoolValue();
+                });
+        cvarManager->log(variable ? "true" : "false");
+        cvarManager->log(cvarManager->getCvar(name) ? "true" : "false");
+        };
 
-    cvarManager->registerCvar("logging_enabled", "0", "Enable Logging", true, true, 0, true, 1)
-        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        loggingEnabled = cvar.getBoolValue();
-            });
-
-    cvarManager->registerCvar("hide_my_team_enabled", "0", "Enable Hiding My Team", true, true, 0, true, 1)
-        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        hideMyTeamEnabled = cvar.getBoolValue();
-            });
-
-    cvarManager->registerCvar("hide_rival_team_enabled", "0", "Enable Hiding Rival Team", true, true, 0, true, 1)
-        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        hideRivalTeamEnabled = cvar.getBoolValue();
-            });
-
-    cvarManager->registerCvar("show_all_winsloses_stats_enabled", "0", "Enable Show All Wins/Loses Stats", true, true, 0, true, 1)
-        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        showAllWinsLosesStatsEnabled = cvar.getBoolValue();
-            });
-
-    cvarManager->registerCvar("show_demo_stats_enabled", "0", "Enable Demo Stats", true, true, 0, true, 1)
-        .addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
-        showDemoStatsEnabled = cvar.getBoolValue();
-            });
+    registerAndBindCvar("align_display_right", "0", "Enable Right Side Render", rightAlignEnabled);
+    registerAndBindCvar("folder_logging_enabled", "0", "Enable Logging", loggingEnabled);
+    registerAndBindCvar("hide_my_team_enabled", "0", "Enable Hiding My Team", hideMyTeamEnabled);
+    registerAndBindCvar("hide_rival_team_enabled", "0", "Enable Hiding Rival Team", hideRivalTeamEnabled);
+    registerAndBindCvar("show_all_winsloses_stats_enabled", "0", "Enable Show All Wins/Loses Stats", showAllWinsLosesStatsEnabled);
+    registerAndBindCvar("show_demo_stats_enabled", "0", "Enable Demo Stats", showDemoStatsEnabled);
 
     LogToFile("RocketLeagueRivals plugin loaded");
 
@@ -77,6 +67,7 @@ void RocketLeagueRivals::onLoad() {
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxHUD_TA.HandleStatTickerMessage", std::bind(&RocketLeagueRivals::OnStatTickerMessage, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     gameWrapper->RegisterDrawable(std::bind(&RocketLeagueRivals::Render, this, std::placeholders::_1));
 }
+
 
 void RocketLeagueRivals::onUnload() {
     LogToFile("RocketLeagueRivals plugin unloaded");
