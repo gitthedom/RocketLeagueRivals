@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "RocketLeagueRivals.h"
+#include <algorithm>
 #include "bakkesmod/wrappers/MMRWrapper.h"
 #include "bakkesmod/wrappers/UniqueIDWrapper.h"
 #include "bakkesmod/wrappers/GameObject/PriWrapper.h"
@@ -7,13 +8,17 @@
 #include "bakkesmod/wrappers/Engine/EngineTAWrapper.h"
 #include "bakkesmod/wrappers/GameObject/Stats/StatEventWrapper.h"
 #include <ctime>
+#include <filesystem> // for std::filesystem::create_directories
+
+namespace fs = std::filesystem;
 
 BAKKESMOD_PLUGIN(RocketLeagueRivals, "Track player interactions in Rocket League", plugin_version, PLUGINTYPE_FREEPLAY)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 std::string dataFolder;
+std::string playerDataFolder;
 std::string localPlayerName;
-std::string logPath = dataFolder + "/rivals/rocketleaguerivals.log";
+std::string logPath;
 
 bool rightAlignEnabled = false;
 bool loggingEnabled = false;
@@ -23,11 +28,10 @@ bool showAllWinsLosesStatsEnabled = false;
 bool showDemoStatsEnabled = false;
 
 void LogToFile(const std::string& message) {
-    _globalCvarManager->log(loggingEnabled ? "loggingEnabled true" : "loggingEnabled false");
-    if (!loggingEnabled) return;
     if (!_globalCvarManager) return; // Ensure _globalCvarManager is valid
     _globalCvarManager->log(message);
-    
+    if (!loggingEnabled) return;
+
     std::ofstream logFile(logPath, std::ios_base::app);
     logFile << message << std::endl;
     logFile.close();
@@ -36,16 +40,22 @@ void LogToFile(const std::string& message) {
 void RocketLeagueRivals::onLoad() {
     _globalCvarManager = cvarManager;
     dataFolder = gameWrapper->GetDataFolder().string();
+    playerDataFolder = dataFolder + "/rivals/players";
+    logPath = dataFolder + "/rivals/rocketleaguerivals.log";
+
+    // Ensure the players directory exists
+    if (fs::create_directories(playerDataFolder)) {
+        LogToFile("Created player data directory: " + playerDataFolder);
+    }
+    else {
+        LogToFile("Player data directory already exists or failed to create: " + playerDataFolder);
+    }
 
     auto registerAndBindCvar = [&](const char* name, const char* defaultValue, const char* description, bool& variable) {
-        cvarManager->log(name);
-        cvarManager->log(cvarManager->getCvar(name) ? "true" : "false");
         cvarManager->registerCvar(name, defaultValue, description, true, true, 0, true, 1)
             .addOnValueChanged([&variable](std::string oldValue, CVarWrapper cvar) {
             variable = cvar.getBoolValue();
                 });
-        cvarManager->log(variable ? "true" : "false");
-        cvarManager->log(cvarManager->getCvar(name) ? "true" : "false");
         };
 
     registerAndBindCvar("align_display_right", "0", "Enable Right Side Render", rightAlignEnabled);
@@ -57,7 +67,6 @@ void RocketLeagueRivals::onLoad() {
 
     LogToFile("RocketLeagueRivals plugin loaded");
 
-    ReadJSON();
     LogToFile("Attempting to hook into match start event");
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function GameEvent_Soccar_TA.Active.StartRound", std::bind(&RocketLeagueRivals::OnMatchStarted, this, std::placeholders::_1));
     LogToFile("Attempting to hook into match end event");
@@ -67,7 +76,6 @@ void RocketLeagueRivals::onLoad() {
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxHUD_TA.HandleStatTickerMessage", std::bind(&RocketLeagueRivals::OnStatTickerMessage, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     gameWrapper->RegisterDrawable(std::bind(&RocketLeagueRivals::Render, this, std::placeholders::_1));
 }
-
 
 void RocketLeagueRivals::onUnload() {
     LogToFile("RocketLeagueRivals plugin unloaded");
@@ -81,56 +89,52 @@ void RocketLeagueRivals::onUnload() {
 
 void RocketLeagueRivals::ReadJSON() {
     LogToFile("Reading JSON");
-    std::string jsonPath = dataFolder + "/rivals/player_data.json";
-    std::ifstream file(jsonPath);
-    if (!file.is_open()) {
-        LogToFile("player_data.json not found, creating new file");
-        std::ofstream newFile(jsonPath);
-        newFile.close();
-        return;
-    }
 
-    json j;
-    file >> j;
+    for (const auto& entry : fs::directory_iterator(playerDataFolder)) {
+        std::ifstream file(entry.path());
+        if (!file.is_open()) {
+            LogToFile("Failed to open " + entry.path().string());
+            continue;
+        }
 
-    for (const auto& item : j) {
-        PlayerInfo player = PlayerInfo::from_json(item);
+        json j;
+        file >> j;
+        PlayerInfo player = PlayerInfo::from_json(j);
         playerData[player.name] = player;
+
+        file.close();
     }
 
-    file.close();
     LogToFile("Finished reading JSON");
 }
 
 void RocketLeagueRivals::WriteJSON() {
     LogToFile("Writing to JSON");
 
-    std::string jsonPath = dataFolder + "/rivals/player_data.json";
-
-    // Load existing JSON data into playerData
-    ReadJSON();
-
-    // Update playerData with activePlayers data
     for (const auto& [name, player] : activePlayers) {
-        playerData[name] = player;
+        std::string sanitizedPlayerName = SanitizeFileName(name);
+        std::string filePath = playerDataFolder + "/" + sanitizedPlayerName + ".json";
+        std::ofstream outputFile(filePath);
+        if (!outputFile.is_open()) {
+            LogToFile("Failed to open " + filePath + " for writing");
+            continue;
+        }
+        LogToFile(filePath);
+        json j = player.to_json();
+        outputFile << j.dump(4); // Pretty print with 4-space indent
+        outputFile.close();
     }
 
-    // Convert playerData to JSON array
-    json updatedData = json::array();
-    for (const auto& [name, player] : playerData) {
-        updatedData.push_back(player.to_json());
-    }
-
-    // Write the updated JSON array to the file
-    std::ofstream outputFile(jsonPath);
-    if (!outputFile.is_open()) {
-        LogToFile("Failed to open player_data.json for writing");
-        return;
-    }
-
-    outputFile << updatedData.dump(4); // Pretty print with 4-space indent
-    outputFile.close();
     LogToFile("Finished writing to JSON");
+}
+
+std::string RocketLeagueRivals::SanitizeFileName(const std::string& filename) {
+    static const std::string invalidChars = "<>:\"/\\|?*";
+    std::string sanitized = filename;
+    for (char c : invalidChars) {
+        std::replace(sanitized.begin(), sanitized.end(), c, '_');
+    }
+    return sanitized;
 }
 
 void RocketLeagueRivals::OnMatchStarted(ServerWrapper server) {
@@ -170,21 +174,28 @@ void RocketLeagueRivals::OnMatchStarted(ServerWrapper server) {
         if (pri.IsNull()) continue;
 
         std::string playerName = pri.GetPlayerName().ToString();
+        std::string sanitizedPlayerName = SanitizeFileName(playerName);
+
         if (playerName == localPlayerName) {
             myTeam = pri.GetTeamNum();
             continue; // Skip the local player
         }
 
-        auto it = playerData.find(playerName);
-        if (it != playerData.end()) {
-            // Player exists, update team and timestamp in activePlayers
-            activePlayers[playerName] = it->second;
-            activePlayers[playerName].team = pri.GetTeamNum();
-            activePlayers[playerName].timestamp = timestamp;
+        std::string filePath = playerDataFolder + "/" + sanitizedPlayerName + ".json";
+        if (fs::exists(filePath)) {
+            std::ifstream file(filePath);
+            if (file.is_open()) {
+                json j;
+                file >> j;
+                PlayerInfo player = PlayerInfo::from_json(j);
+                player.team = pri.GetTeamNum();
+                player.timestamp = timestamp;
+                activePlayers[playerName] = player;
+                file.close();
+            }
         }
         else {
-            // Player does not exist, add new entry to activePlayers
-            activePlayers[playerName] = PlayerInfo{ playerName, 0, 0, 0, 0, pri.GetTeamNum(), timestamp };
+            activePlayers[playerName] = PlayerInfo{ playerName, 0, 0, 0, 0, pri.GetTeamNum(), timestamp, 0, 0 };
         }
     }
 }
@@ -201,32 +212,26 @@ void RocketLeagueRivals::OnMatchEnded(ServerWrapper server) {
         }
 
         if (player.team == myTeam) {
-            LogToFile("Before: " + player.name + " winsWith: " + std::to_string(player.winsWith) + ", lossesWith: " + std::to_string(player.lossesWith));
             if (won) {
                 player.winsWith++;
             }
             else {
                 player.lossesWith++;
             }
-            LogToFile("After: " + player.name + " winsWith: " + std::to_string(player.winsWith) + ", lossesWith: " + std::to_string(player.lossesWith));
         }
         else {
-            LogToFile("Before: " + player.name + " winsAgainst: " + std::to_string(player.winsAgainst) + ", lossesAgainst: " + std::to_string(player.lossesAgainst));
             if (won) {
                 player.winsAgainst++;
             }
             else {
                 player.lossesAgainst++;
             }
-            LogToFile("After: " + player.name + " winsAgainst: " + std::to_string(player.winsAgainst) + ", lossesAgainst: " + std::to_string(player.lossesAgainst));
         }
     }
 
     WriteJSON();
-    ReadJSON();
-
-    scores = { 0, 0 }; // Reset the scores at the end of each match
     activePlayers.clear(); // Clear active players at the end of each match
+    scores = { 0, 0 }; // Reset the scores at the end of each match
 }
 
 void RocketLeagueRivals::OnStatTickerMessage(ServerWrapper caller, void* params, std::string eventname) {
@@ -370,15 +375,14 @@ void RocketLeagueRivals::Render(CanvasWrapper canvas) {
     }
 }
 
-
-void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas, 
-    const std::string& text, 
-    int xOffset, 
-    int& yOffset, 
-    int width, 
-    int headerHeight, 
-    int padding, 
-    float fontSize, 
+void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas,
+    const std::string& text,
+    int xOffset,
+    int& yOffset,
+    int width,
+    int headerHeight,
+    int padding,
+    float fontSize,
     float fontScale) {
     canvas.SetColor(0, 0, 0, 128); // Transparent black background
     canvas.DrawRect(Vector2(xOffset - padding, yOffset - padding), Vector2(xOffset + width + padding, yOffset + headerHeight + padding));
@@ -517,22 +521,22 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     yOffset += lineHeight + padding;
 }
 
-void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas, 
-    const std::string& header, 
-    const std::vector<PlayerInfo>& players, 
-    int xOffset, 
-    int& yOffset, 
-    int width, 
-    int headerHeight, 
-    int playerHeight, 
-    int lineHeight, 
-    int padding, 
-    float headerFontSize, 
-    float headerFontScale, 
-    float playerFontSize, 
-    float playerFontScale, 
-    float statFontSize, 
-    float statFontScale, 
+void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas,
+    const std::string& header,
+    const std::vector<PlayerInfo>& players,
+    int xOffset,
+    int& yOffset,
+    int width,
+    int headerHeight,
+    int playerHeight,
+    int lineHeight,
+    int padding,
+    float headerFontSize,
+    float headerFontScale,
+    float playerFontSize,
+    float playerFontScale,
+    float statFontSize,
+    float statFontScale,
     bool isMyTeam) {
     if (!players.empty()) {
         DrawHeader(canvas, header, xOffset, yOffset, width, headerHeight, padding, headerFontSize, headerFontScale);
