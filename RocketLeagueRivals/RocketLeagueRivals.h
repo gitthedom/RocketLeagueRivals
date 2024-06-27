@@ -31,7 +31,6 @@ struct PlayerInfo {
     int demosGiven;
     int demosReceived;
 
-    // Convert PlayerInfo to JSON
     json to_json() const {
         return json{
             {"name", name},
@@ -46,7 +45,6 @@ struct PlayerInfo {
         };
     }
 
-    // Create PlayerInfo from JSON
     static PlayerInfo from_json(const json& j) {
         return PlayerInfo{
             j.at("name").get<std::string>(),
@@ -106,13 +104,27 @@ private:
 
     TeamScores scores;
 
-    // Helper functions for rendering
-    void DrawHeader(CanvasWrapper& canvas, const std::string& text, int xOffset, int& yOffset, int width, int headerHeight, int padding, float fontSize, float fontScale);
-    void DrawPlayerInfo(CanvasWrapper& canvas, const PlayerInfo& player, int xOffset, int& yOffset, int width, int playerHeight, int lineHeight, int padding, float playerFontSize, float playerFontScale, float statFontSize, float statFontScale, bool isMyTeam);
-    void RenderTeam(CanvasWrapper& canvas, const std::string& header, const std::vector<PlayerInfo>& players, int xOffset, int& yOffset, int width, int headerHeight, int playerHeight, int lineHeight, int padding, float headerFontSize, float headerFontScale, float playerFontSize, float playerFontScale, float statFontSize, float statFontScale, bool isMyTeam);
+    void DrawHeader(CanvasWrapper& canvas, const std::string& text, int xOffset, int& yOffset);
+    void DrawPlayerInfo(CanvasWrapper& canvas, const PlayerInfo& player, int xOffset, int& yOffset, bool isMyTeam);
+    void RenderTeam(CanvasWrapper& canvas, const std::string& header, const std::vector<PlayerInfo>& players, int xOffset, int& yOffset, bool isMyTeam);
 
-    // Function to sanitize file names
     std::string SanitizeFileName(const std::string& filename);
+
+    struct RenderConfig {
+        float headerFontSize = 2.0f;
+        float headerFontScale = 2.0f;
+        float playerFontSize = 1.5f;
+        float playerFontScale = 1.5f;
+        float statFontSize = 1.2f;
+        float statFontScale = 1.2f;
+        int padding = 0;
+        int lineHeight = 20;
+        int headerHeight = 30;
+        int playerHeight = lineHeight * 2 + padding;
+        int width = 200;
+    };
+
+    RenderConfig renderConfig;
 
 public:
     virtual void onLoad() override;
@@ -120,4 +132,4 @@ public:
     void RenderSettings() override;
 };
 
-#endif // ROCKETLEAGUERIVALS_H
+#endif

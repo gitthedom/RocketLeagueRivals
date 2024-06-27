@@ -4,7 +4,6 @@
 void RocketLeagueRivals::RenderSettings() {
     ImGui::TextUnformatted("Rocket League Rivals Settings");
 
-    // Helper function to render checkboxes
     auto renderCheckbox = [&](const char* label, const char* cvarName, const char* tooltip) {
         CVarWrapper cvar = cvarManager->getCvar(cvarName);
         if (!cvar) { return; }
