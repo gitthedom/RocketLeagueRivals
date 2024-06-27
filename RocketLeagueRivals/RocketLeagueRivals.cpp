@@ -68,7 +68,7 @@ void RocketLeagueRivals::onLoad() {
     LogToFile("RocketLeagueRivals plugin loaded");
 
     LogToFile("Attempting to hook into match start event");
-    gameWrapper->HookEventWithCaller<ServerWrapper>("Function GameEvent_Soccar_TA.Active.StartRound", std::bind(&RocketLeagueRivals::OnMatchStarted, this, std::placeholders::_1));
+    gameWrapper->HookEventWithCaller<ServerWrapper>("Function GameEvent_Soccar_TA.Active.StartRound", std::bind(&RocketLeagueRivals::OnRoundStart, this, std::placeholders::_1));
     LogToFile("Attempting to hook into match end event");
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.AchievementSystem_TA.CheckWonMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this, std::placeholders::_1));
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxShell_TA.LeaveMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this, std::placeholders::_1));
@@ -137,7 +137,7 @@ std::string RocketLeagueRivals::SanitizeFileName(const std::string& filename) {
     return sanitized;
 }
 
-void RocketLeagueRivals::OnMatchStarted(ServerWrapper server) {
+void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
     matchStarted = true;
 
     LogToFile("Match started");
@@ -181,21 +181,25 @@ void RocketLeagueRivals::OnMatchStarted(ServerWrapper server) {
             continue; // Skip the local player
         }
 
-        std::string filePath = playerDataFolder + "/" + sanitizedPlayerName + ".json";
-        if (fs::exists(filePath)) {
-            std::ifstream file(filePath);
-            if (file.is_open()) {
-                json j;
-                file >> j;
-                PlayerInfo player = PlayerInfo::from_json(j);
-                player.team = pri.GetTeamNum();
-                player.timestamp = timestamp;
-                activePlayers[playerName] = player;
-                file.close();
+        if (activePlayers.find(playerName) == activePlayers.end()) {
+            // Player is not in activePlayers, check if file exists
+            std::string filePath = playerDataFolder + "/" + sanitizedPlayerName + ".json";
+            if (fs::exists(filePath)) {
+                std::ifstream file(filePath);
+                if (file.is_open()) {
+                    json j;
+                    file >> j;
+                    PlayerInfo player = PlayerInfo::from_json(j);
+                    player.team = pri.GetTeamNum();
+                    player.timestamp = timestamp;
+                    activePlayers[playerName] = player;
+                    file.close();
+                }
             }
-        }
-        else {
-            activePlayers[playerName] = PlayerInfo{ playerName, 0, 0, 0, 0, pri.GetTeamNum(), timestamp, 0, 0 };
+            else {
+                // If the player file doesn't exist, add new entry to activePlayers
+                activePlayers[playerName] = PlayerInfo{ playerName, 0, 0, 0, 0, pri.GetTeamNum(), timestamp, 0, 0 };
+            }
         }
     }
 }

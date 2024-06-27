@@ -89,7 +89,7 @@ private:
     bool hideRivalTeamEnabled = false;
     bool showAllStatsEnabled = false;
 
-    void OnMatchStarted(ServerWrapper server);
+    void OnRoundStart(ServerWrapper server);
     void OnMatchEnded(ServerWrapper server);
     void Render(CanvasWrapper canvas);
     void ReadJSON();
