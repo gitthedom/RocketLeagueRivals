@@ -13,6 +13,7 @@
 #include <sstream>
 #include "third_party/json.hpp"
 #include <unordered_map>
+#include <filesystem>
 
 #include "version.h"
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
@@ -88,7 +89,7 @@ private:
     bool hideRivalTeamEnabled = false;
     bool showAllStatsEnabled = false;
 
-    void OnMatchStarted(ServerWrapper server);
+    void OnRoundStart(ServerWrapper server);
     void OnMatchEnded(ServerWrapper server);
     void Render(CanvasWrapper canvas);
     void ReadJSON();
@@ -109,6 +110,9 @@ private:
     void DrawHeader(CanvasWrapper& canvas, const std::string& text, int xOffset, int& yOffset, int width, int headerHeight, int padding, float fontSize, float fontScale);
     void DrawPlayerInfo(CanvasWrapper& canvas, const PlayerInfo& player, int xOffset, int& yOffset, int width, int playerHeight, int lineHeight, int padding, float playerFontSize, float playerFontScale, float statFontSize, float statFontScale, bool isMyTeam);
     void RenderTeam(CanvasWrapper& canvas, const std::string& header, const std::vector<PlayerInfo>& players, int xOffset, int& yOffset, int width, int headerHeight, int playerHeight, int lineHeight, int padding, float headerFontSize, float headerFontScale, float playerFontSize, float playerFontScale, float statFontSize, float statFontScale, bool isMyTeam);
+
+    // Function to sanitize file names
+    std::string SanitizeFileName(const std::string& filename);
 
 public:
     virtual void onLoad() override;
