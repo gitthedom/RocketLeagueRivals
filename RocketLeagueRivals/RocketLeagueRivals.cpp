@@ -374,6 +374,12 @@ void RocketLeagueRivals::Render(CanvasWrapper canvas) {
     }
 }
 
+void DrawText(CanvasWrapper& canvas, const std::string& text, int x, int y, float fontSize, float fontScale, const std::tuple<int, int, int, int>& color) {
+    canvas.SetColor(std::get<0>(color), std::get<1>(color), std::get<2>(color), std::get<3>(color));
+    canvas.SetPosition(Vector2(x, y));
+    canvas.DrawString(text, fontSize, fontScale);
+}
+
 void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas,
     const std::string& text,
     int xOffset,
@@ -381,22 +387,14 @@ void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas,
     const RenderConfig& config = renderConfig;
     canvas.SetColor(0, 0, 0, 128);
     canvas.DrawRect(Vector2(xOffset - config.padding, yOffset + 2 - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + 2 + config.headerHeight + config.padding));
-    canvas.SetColor(255, 255, 255, 255);
-    canvas.SetPosition(Vector2(xOffset + 5, yOffset));
-    canvas.DrawString(text, config.headerFontSize, config.headerFontScale);
+    DrawText(canvas, text, xOffset + 5, yOffset, config.headerFontSize, config.headerFontScale, neutralColor);
     yOffset += config.headerHeight + config.padding * 2;
-}
-
-void DrawText(CanvasWrapper& canvas, const std::string& text, int x, int y, float fontSize, float fontScale, int r, int g, int b, int a) {
-    canvas.SetColor(r, g, b, a);
-    canvas.SetPosition(Vector2(x, y));
-    canvas.DrawString(text, fontSize, fontScale);
 }
 
 void DrawStat(CanvasWrapper& canvas, const std::string& label, float statValue, int x, int& y, float fontSize, float fontScale, const std::tuple<int, int, int, int>& color, int lineHeight) {
     std::stringstream ss;
     ss << label << ": " << std::fixed << std::setprecision(1) << statValue << "%";
-    DrawText(canvas, ss.str(), x, y, fontSize, fontScale, std::get<0>(color), std::get<1>(color), std::get<2>(color), std::get<3>(color));
+    DrawText(canvas, ss.str(), x, y, fontSize, fontScale, color);
 }
 
 std::tuple<int, int, int, int> GetStatColor(int wins, int losses, const std::tuple<int, int, int, int>& defaultColor, const std::tuple<int, int, int, int>& winColor, const std::tuple<int, int, int, int>& lossColor) {
@@ -450,14 +448,14 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     std::string displayName = player.name.length() > 18 ? player.name.substr(0, 15) + "..." : player.name;
     if (!showRivalStatsEnabled) {
         if (isRival) {
-            DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 255, 0, 0, 255);
+            DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, redColor);
         }
         else {
-            DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 56, 142, 235, 255);
+            DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, lightBlueColor);
         }
     }
     else {
-        DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 255, 255, 255, 255);
+        DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, neutralColor);
     }
 
     if (showRivalStatsEnabled) {
@@ -465,11 +463,11 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
         std::string rivalText;
         if (isRival) {
             rivalText = "Rivalry Score: " + rivalryScoreStr;
-            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 255, 0, 0, 255);
+            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, redColor);
         }
         else {
             rivalText = "Rivalry Score: " + rivalryScoreStr;
-            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 56, 142, 235, 255);
+            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, lightBlueColor);
         }
     }
 
@@ -477,24 +475,22 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
         yOffset += config.lineHeight;
         std::stringstream ssDemos;
         ssDemos << "Demos to/from: " << player.demosGiven << " : " << player.demosReceived;
-        DrawText(canvas, ssDemos.str(), xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 255, 255, 255, 255);
+        DrawText(canvas, ssDemos.str(), xOffset + 10, yOffset, config.statFontSize, config.statFontScale, neutralColor);
     }
 
     if (showAllWinsLosesStatsEnabled || (isMyTeam && showTeamStatsEnabled)) {
         yOffset += config.lineHeight;
         float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
         float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
-        auto color = GetStatColor(player.winsWith, player.lossesWith, { 255, 255, 255, 255 }, { 56, 142, 235, 255 }, { 255, 165, 0, 255 });
+        auto color = GetStatColor(player.winsWith, player.lossesWith, neutralColor, lightBlueColor, orangeColor);
         DrawStat(canvas, "Won with", winWithPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
     }
-
-    //if (showAllWinsLosesStatsEnabled) yOffset += config.lineHeight;
 
     if (showAllWinsLosesStatsEnabled || (!isMyTeam && showTeamStatsEnabled)) {
         yOffset += config.lineHeight;
         float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
         float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
-        auto color = GetStatColor(player.winsAgainst, player.lossesAgainst, { 255, 255, 255, 255 }, { 0, 255, 0, 255 }, { 255, 0, 0, 255 });
+        auto color = GetStatColor(player.winsAgainst, player.lossesAgainst, neutralColor, { 0, 255, 0, 255 }, redColor);
         DrawStat(canvas, "Won against", winAgainstPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
     }
 
@@ -565,5 +561,5 @@ float RocketLeagueRivals::CalculateRivalryScore(const PlayerInfo& player) {
     int frequencyPoints = GetFrequencyPoints(totalEncounters);
 
     float rivalryScore = (winAgainstPoints + winWithPoints) * 0.4 + demosPoints * 0.3 + frequencyPoints * 0.3;
-    return totalGamesAgainst + totalGamesWith == 0 ? demosPoints * 0.3 : rivalryScore;
+    return totalGamesAgainst + totalGamesWith == 0 ? demosPoints * 0.3 : rivalryScore < 0 ? demosPoints * 0.3 : rivalryScore;
 }
