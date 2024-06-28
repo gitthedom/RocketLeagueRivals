@@ -130,6 +130,10 @@ public:
     virtual void onLoad() override;
     virtual void onUnload() override;
     void RenderSettings() override;
+
+    // Add the function declaration here
+    float CalculateRivalryScore(const PlayerInfo& player);
 };
 
 #endif
+

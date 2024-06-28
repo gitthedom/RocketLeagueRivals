@@ -9,6 +9,8 @@
 #include "bakkesmod/wrappers/GameObject/Stats/StatEventWrapper.h"
 #include <ctime>
 #include <filesystem>
+#include <iostream>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -25,7 +27,10 @@ bool loggingEnabled = false;
 bool hideMyTeamEnabled = false;
 bool hideRivalTeamEnabled = false;
 bool showAllWinsLosesStatsEnabled = false;
+bool showTeamStatsEnabled = false;
 bool showDemoStatsEnabled = false;
+bool showRivalStatsEnabled = true;
+std::string rivalNumberString = "3";
 
 void LogToFile(const std::string& message) {
     if (!_globalCvarManager) return;
@@ -50,19 +55,29 @@ void RocketLeagueRivals::onLoad() {
         LogToFile("Player data directory already exists or failed to create: " + playerDataFolder);
     }
 
-    auto registerAndBindCvar = [&](const char* name, const char* defaultValue, const char* description, bool& variable) {
+    auto registerAndBindBoolCvar = [&](const char* name, const char* defaultValue, const char* description, bool& variable) {
         cvarManager->registerCvar(name, defaultValue, description, true, true, 0, true, 1)
             .addOnValueChanged([&variable](std::string oldValue, CVarWrapper cvar) {
             variable = cvar.getBoolValue();
                 });
         };
 
-    registerAndBindCvar("align_display_right", "0", "Enable Right Side Render", rightAlignEnabled);
-    registerAndBindCvar("folder_logging_enabled", "0", "Enable Logging", loggingEnabled);
-    registerAndBindCvar("hide_my_team_enabled", "0", "Enable Hiding My Team", hideMyTeamEnabled);
-    registerAndBindCvar("hide_rival_team_enabled", "0", "Enable Hiding Rival Team", hideRivalTeamEnabled);
-    registerAndBindCvar("show_all_winsloses_stats_enabled", "0", "Enable Show All Wins/Loses Stats", showAllWinsLosesStatsEnabled);
-    registerAndBindCvar("show_demo_stats_enabled", "0", "Enable Demo Stats", showDemoStatsEnabled);
+    auto registerAndBindStringCvar = [&](const char* name, const char* defaultValue, const char* description, std::string& variable) {
+        cvarManager->registerCvar(name, defaultValue, description, true, true, 0, true, 1)
+            .addOnValueChanged([&variable](std::string oldValue, CVarWrapper cvar) {
+            variable = cvar.getStringValue();
+                });
+        };
+
+    registerAndBindBoolCvar("align_display_right", "0", "Enable Right Side Render", rightAlignEnabled);
+    registerAndBindBoolCvar("folder_logging_enabled", "0", "Enable Logging", loggingEnabled);
+    registerAndBindBoolCvar("hide_my_team_enabled", "0", "Enable Hiding My Team", hideMyTeamEnabled);
+    registerAndBindBoolCvar("hide_rival_team_enabled", "0", "Enable Hiding Rival Team", hideRivalTeamEnabled);
+    registerAndBindBoolCvar("show_all_winsloses_stats_enabled", "0", "Enable Show All Wins/Loses Stats", showAllWinsLosesStatsEnabled);
+    registerAndBindBoolCvar("show_team_stats_enabled", "0", "Enable Show Team Stats", showTeamStatsEnabled);
+    registerAndBindBoolCvar("show_demo_stats_enabled", "0", "Enable Demo Stats", showDemoStatsEnabled);
+    registerAndBindBoolCvar("show_rival_stats_enabled", "1", "Enable Rival Stats", showRivalStatsEnabled);
+    registerAndBindStringCvar("set_rival_number", "3", "Enable Demo Stats", rivalNumberString);
 
     LogToFile("RocketLeagueRivals plugin loaded");
 
@@ -365,7 +380,7 @@ void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas,
     int& yOffset) {
     const RenderConfig& config = renderConfig;
     canvas.SetColor(0, 0, 0, 128);
-    canvas.DrawRect(Vector2(xOffset - config.padding, yOffset - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + config.headerHeight + config.padding));
+    canvas.DrawRect(Vector2(xOffset - config.padding, yOffset + 2 - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + 2 + config.headerHeight + config.padding));
     canvas.SetColor(255, 255, 255, 255);
     canvas.SetPosition(Vector2(xOffset + 5, yOffset));
     canvas.DrawString(text, config.headerFontSize, config.headerFontScale);
@@ -398,38 +413,85 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     bool isMyTeam) {
     const RenderConfig& config = renderConfig;
 
-    int adjustedPlayerHeight = config.playerHeight;
+    int adjustedPlayerHeight = config.playerHeight / 2;
     if (showAllWinsLosesStatsEnabled) {
         adjustedPlayerHeight += config.lineHeight + config.padding;
+        if (!showTeamStatsEnabled) {
+            adjustedPlayerHeight += config.lineHeight;
+        }
     }
     if (showDemoStatsEnabled) {
         adjustedPlayerHeight += config.lineHeight;
     }
-
-    canvas.SetColor(0, 0, 0, 128);
-    canvas.DrawRect(Vector2(xOffset - config.padding, yOffset - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + adjustedPlayerHeight));
-
-    std::string displayName = player.name.length() > 18 ? player.name.substr(0, 15) + "..." : player.name;
-    DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 255, 255, 255, 255);
-    yOffset += config.lineHeight;
-
-    if (showDemoStatsEnabled) {
-        std::stringstream ssDemos;
-        ssDemos << "DG: " << player.demosGiven << "   DR: " << player.demosReceived;
-        DrawText(canvas, ssDemos.str(), xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 255, 255, 255, 255);
-        yOffset += config.lineHeight;
+    if (showTeamStatsEnabled) {
+        adjustedPlayerHeight += config.lineHeight;
+    }
+    if (showRivalStatsEnabled) {
+        adjustedPlayerHeight += config.lineHeight;
     }
 
-    if (showAllWinsLosesStatsEnabled || isMyTeam) {
+    float rivalryScore = CalculateRivalryScore(player);
+    std::stringstream geek;
+    geek << rivalNumberString;
+    int rivalNumber;
+    geek >> rivalNumber;
+    if (!(rivalNumber > 0)) {
+        rivalNumber = 5;
+    }
+    bool isRival = rivalryScore > rivalNumber;
+
+    std::ostringstream scoreStream;
+    scoreStream << std::fixed << std::setprecision(1) << rivalryScore;
+    std::string rivalryScoreStr = scoreStream.str();
+
+    canvas.SetColor(0, 0, 0, 128);
+    canvas.DrawRect(Vector2(xOffset - config.padding, yOffset + 2 - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + 2 + adjustedPlayerHeight));
+
+    std::string displayName = player.name.length() > 18 ? player.name.substr(0, 15) + "..." : player.name;
+    if (!showRivalStatsEnabled) {
+        if (isRival) {
+            DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 255, 0, 0, 255);
+        }
+        else {
+            DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 56, 142, 235, 255);
+        }
+    }
+    else {
+        DrawText(canvas, displayName, xOffset + 5, yOffset, config.playerFontSize, config.playerFontScale, 255, 255, 255, 255);
+    }
+
+    if (showRivalStatsEnabled) {
+        yOffset += config.lineHeight;
+        std::string rivalText;
+        if (isRival) {
+            rivalText = "Rivalry Score: " + rivalryScoreStr;
+            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 255, 0, 0, 255);
+        }
+        else {
+            rivalText = "Rivalry Score: " + rivalryScoreStr;
+            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 56, 142, 235, 255);
+        }
+    }
+
+    if (showDemoStatsEnabled) {
+        yOffset += config.lineHeight;
+        std::stringstream ssDemos;
+        ssDemos << "Demos to/from: " << player.demosGiven << " : " << player.demosReceived;
+        DrawText(canvas, ssDemos.str(), xOffset + 10, yOffset, config.statFontSize, config.statFontScale, 255, 255, 255, 255);
+    }
+
+    if (showAllWinsLosesStatsEnabled || (isMyTeam && showTeamStatsEnabled)) {
+        yOffset += config.lineHeight;
         float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
         float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
         auto color = GetStatColor(player.winsWith, player.lossesWith, { 255, 255, 255, 255 }, { 56, 142, 235, 255 }, { 255, 165, 0, 255 });
         DrawStat(canvas, "Won with", winWithPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
     }
 
-    if (showAllWinsLosesStatsEnabled) yOffset += config.lineHeight;
+    //if (showAllWinsLosesStatsEnabled) yOffset += config.lineHeight;
 
-    if (showAllWinsLosesStatsEnabled || !isMyTeam) {
+    if (showAllWinsLosesStatsEnabled || (!isMyTeam && showTeamStatsEnabled)) {
+        yOffset += config.lineHeight;
         float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
         float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
         auto color = GetStatColor(player.winsAgainst, player.lossesAgainst, { 255, 255, 255, 255 }, { 0, 255, 0, 255 }, { 255, 0, 0, 255 });
@@ -452,4 +514,56 @@ void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas,
         }
         yOffset += renderConfig.headerHeight;
     }
+}
+
+int GetWinAgainstPoints(float winPercentageAgainst) {
+    if (winPercentageAgainst <= 10) return 5;
+    else if (winPercentageAgainst <= 20) return 4;
+    else if (winPercentageAgainst <= 30) return 3;
+    else if (winPercentageAgainst <= 40) return 2;
+    else if (winPercentageAgainst <= 50) return 1;
+    else return 0;
+}
+
+int GetWinWithPoints(float winPercentageWith) {
+    if (winPercentageWith <= 10) return 5;
+    else if (winPercentageWith <= 20) return 4;
+    else if (winPercentageWith <= 30) return 3;
+    else if (winPercentageWith <= 40) return 2;
+    else if (winPercentageWith <= 50) return 1;
+    else if (winPercentageWith <= 60) return -1;
+    else if (winPercentageWith <= 70) return -2;
+    else if (winPercentageWith <= 80) return -3;
+    else if (winPercentageWith <= 90) return -4;
+    else return -5;
+}
+
+int GetDemosPoints(int demos) {
+    if (demos <= 2) return 1;
+    else if (demos <= 5) return 2;
+    else return 5;
+}
+
+int GetFrequencyPoints(int encounters) {
+    if (encounters <= 3) return 1;
+    else if (encounters <= 6) return 2;
+    else return 3;
+}
+
+
+float RocketLeagueRivals::CalculateRivalryScore(const PlayerInfo& player) {
+    float totalGamesWith = static_cast<float>(player.winsWith + player.lossesWith);
+    float winPercentageWith = totalGamesWith == 0 ? 0 : (player.winsWith / totalGamesWith) * 100.0f;
+
+    float totalGamesAgainst = static_cast<float>(player.winsAgainst + player.lossesAgainst);
+    float winPercentageAgainst = totalGamesAgainst == 0 ? 0 : (player.winsAgainst / totalGamesAgainst) * 100.0f;
+
+    int winAgainstPoints = totalGamesAgainst == 0 ? 0 : GetWinAgainstPoints(winPercentageAgainst);
+    int winWithPoints = totalGamesWith == 0 ? 0 : GetWinWithPoints(winPercentageWith);
+    int demosPoints = player.demosReceived == 0 ? 0 : GetDemosPoints(player.demosReceived);
+    int totalEncounters = player.winsWith + player.lossesWith + player.winsAgainst + player.lossesAgainst;
+    int frequencyPoints = GetFrequencyPoints(totalEncounters);
+
+    float rivalryScore = (winAgainstPoints + winWithPoints) * 0.4 + demosPoints * 0.3 + frequencyPoints * 0.3;
+    return totalGamesAgainst + totalGamesWith == 0 ? demosPoints * 0.3 : rivalryScore;
 }
