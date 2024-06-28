@@ -87,6 +87,11 @@ private:
     bool hideRivalTeamEnabled = false;
     bool showAllStatsEnabled = false;
 
+    const std::tuple<int, int, int, int> neutralColor = { 255, 255, 255, 255 };
+    const std::tuple<int, int, int, int> lightBlueColor = { 56, 142, 235, 255 };
+    const std::tuple<int, int, int, int> redColor = { 255, 0, 0, 255 };
+    const std::tuple<int, int, int, int> orangeColor = { 255, 165, 0, 255 };
+
     void OnRoundStart(ServerWrapper server);
     void OnMatchEnded(ServerWrapper server);
     void Render(CanvasWrapper canvas);
