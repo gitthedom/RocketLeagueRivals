@@ -466,8 +466,9 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
             DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, redColor);
         }
         else {
+            std::tuple<int, int, int, int> colorDetermination = rivalryScore == 0 ? neutralColor : lightBlueColor;
             rivalText = "Rivalry Score: " + rivalryScoreStr;
-            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, lightBlueColor);
+            DrawText(canvas, rivalText, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, colorDetermination);
         }
     }
 
