@@ -9,7 +9,7 @@
 #include <map>
 #include <fstream>
 #include <sstream>
-#include "third_party/json.hpp"
+#include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <filesystem>
 #include "version.h"
