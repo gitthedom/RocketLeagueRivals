@@ -45,7 +45,7 @@ The Rocket League Rivals plugin displays various stats about the players in your
 
 ### Commands
 
-You can use the following console commands to customize the plugin settings:
+You change settings in the plugins window or you can use the following console commands to customize the plugin settings:
 
 - `align_display_right <0/1>`: Enable or disable right-side display alignment.
 - `folder_logging_enabled <0/1>`: Enable or disable logging.
