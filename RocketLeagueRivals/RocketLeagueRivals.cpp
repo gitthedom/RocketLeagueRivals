@@ -42,6 +42,34 @@ void LogToFile(const std::string& message) {
     logFile.close();
 }
 
+json PlayerInfo::to_json() const {
+    return json{
+        {"name", name},
+        {"winsWith", winsWith},
+        {"lossesWith", lossesWith},
+        {"winsAgainst", winsAgainst},
+        {"lossesAgainst", lossesAgainst},
+        {"team", team},
+        {"timestamp", timestamp},
+        {"demosGiven", demosGiven},
+        {"demosReceived", demosReceived}
+    };
+}
+
+PlayerInfo PlayerInfo::from_json(const json& j) {
+    return PlayerInfo{
+        j.at("name").get<std::string>(),
+        j.at("winsWith").get<int>(),
+        j.at("lossesWith").get<int>(),
+        j.at("winsAgainst").get<int>(),
+        j.at("lossesAgainst").get<int>(),
+        j.at("team").get<int>(),
+        j.at("timestamp").get<std::string>(),
+        j.at("demosGiven").get<int>(),
+        j.at("demosReceived").get<int>()
+    };
+}
+
 void RocketLeagueRivals::onLoad() {
     _globalCvarManager = cvarManager;
     dataFolder = gameWrapper->GetDataFolder().string();
@@ -96,8 +124,8 @@ void RocketLeagueRivals::onUnload() {
     WriteJSON();
     gameWrapper->UnhookEvent("Function GameEvent_Soccar_TA.Active.StartRound");
     gameWrapper->UnhookEvent("Function TAGame.AchievementSystem_TA.CheckWonMatch");
-    gameWrapper->UnhookEvent("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent");
     gameWrapper->UnhookEvent("Function TAGame.GFxShell_TA.LeaveMatch");
+    gameWrapper->UnhookEvent("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent");
     gameWrapper->UnhookEvent("Function TAGame.GFxHUD_TA.HandleStatTickerMessage");
 }
 
@@ -380,10 +408,7 @@ void DrawText(CanvasWrapper& canvas, const std::string& text, int x, int y, floa
     canvas.DrawString(text, fontSize, fontScale);
 }
 
-void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas,
-    const std::string& text,
-    int xOffset,
-    int& yOffset) {
+void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas, const std::string& text, int xOffset, int& yOffset) {
     const RenderConfig& config = renderConfig;
     canvas.SetColor(0, 0, 0, 128);
     canvas.DrawRect(Vector2(xOffset - config.padding, yOffset + 2 - config.padding), Vector2(xOffset + config.width + config.padding, yOffset + 2 + config.headerHeight + config.padding));
@@ -404,11 +429,7 @@ std::tuple<int, int, int, int> GetStatColor(int wins, int losses, const std::tup
     return wins > losses ? winColor : lossColor;
 }
 
-void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
-    const PlayerInfo& player,
-    int xOffset,
-    int& yOffset,
-    bool isMyTeam) {
+void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas, const PlayerInfo& player, int xOffset, int& yOffset, bool isMyTeam) {
     const RenderConfig& config = renderConfig;
 
     int adjustedPlayerHeight = config.playerHeight / 2;
@@ -498,12 +519,7 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas,
     yOffset += config.lineHeight + config.padding;
 }
 
-void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas,
-    const std::string& header,
-    const std::vector<PlayerInfo>& players,
-    int xOffset,
-    int& yOffset,
-    bool isMyTeam) {
+void RocketLeagueRivals::RenderTeam(CanvasWrapper& canvas, const std::string& header, const std::vector<PlayerInfo>& players, int xOffset, int& yOffset, bool isMyTeam) {
     if (!players.empty()) {
         DrawHeader(canvas, header, xOffset, yOffset);
         for (const auto& player : players) {
@@ -546,7 +562,6 @@ int GetFrequencyPoints(int encounters) {
     else if (encounters <= 6) return 2;
     else return 3;
 }
-
 
 float RocketLeagueRivals::CalculateRivalryScore(const PlayerInfo& player) {
     float totalGamesWith = static_cast<float>(player.winsWith + player.lossesWith);

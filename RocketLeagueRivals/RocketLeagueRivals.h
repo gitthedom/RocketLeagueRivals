@@ -1,6 +1,4 @@
 #pragma once
-#ifndef ROCKETLEAGUERIVALS_H
-#define ROCKETLEAGUERIVALS_H
 
 #include "GuiBase.h"
 #include "bakkesmod/plugin/bakkesmodplugin.h"
@@ -14,8 +12,8 @@
 #include "third_party/json.hpp"
 #include <unordered_map>
 #include <filesystem>
-
 #include "version.h"
+
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
 
 using json = nlohmann::json;
@@ -31,33 +29,8 @@ struct PlayerInfo {
     int demosGiven;
     int demosReceived;
 
-    json to_json() const {
-        return json{
-            {"name", name},
-            {"winsWith", winsWith},
-            {"lossesWith", lossesWith},
-            {"winsAgainst", winsAgainst},
-            {"lossesAgainst", lossesAgainst},
-            {"team", team},
-            {"timestamp", timestamp},
-            {"demosGiven", demosGiven},
-            {"demosReceived", demosReceived}
-        };
-    }
-
-    static PlayerInfo from_json(const json& j) {
-        return PlayerInfo{
-            j.at("name").get<std::string>(),
-            j.at("winsWith").get<int>(),
-            j.at("lossesWith").get<int>(),
-            j.at("winsAgainst").get<int>(),
-            j.at("lossesAgainst").get<int>(),
-            j.at("team").get<int>(),
-            j.at("timestamp").get<std::string>(),
-            j.at("demosGiven").get<int>(),
-            j.at("demosReceived").get<int>()
-        };
-    }
+    json to_json() const;
+    static PlayerInfo from_json(const json& j);
 };
 
 struct TriggerGoalScoreParams {
@@ -71,9 +44,7 @@ struct StatTickerParams {
     uintptr_t StatEvent;
 };
 
-class RocketLeagueRivals : public BakkesMod::Plugin::BakkesModPlugin,
-    public SettingsWindowBase
-{
+class RocketLeagueRivals : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase {
 private:
     std::map<std::string, PlayerInfo> playerData;
     std::unordered_map<std::string, PlayerInfo> activePlayers;
@@ -135,10 +106,5 @@ public:
     virtual void onLoad() override;
     virtual void onUnload() override;
     void RenderSettings() override;
-
-    // Add the function declaration here
     float CalculateRivalryScore(const PlayerInfo& player);
 };
-
-#endif
-
