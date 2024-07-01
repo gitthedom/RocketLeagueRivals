@@ -24,12 +24,9 @@ The Rocket League Rivals plugin displays various stats about the players in your
 ### Displayed Stats
 
 - **Player Name:** The name of the player.
-- **Wins With:** Number of matches won with this player on your team.
-- **Losses With:** Number of matches lost with this player on your team.
-- **Wins Against:** Number of matches won against this player.
-- **Losses Against:** Number of matches lost against this player.
-- **Demos Given:** Number of times you demolished this player.
-- **Demos Received:** Number of times this player demolished you.
+- **Wins With:** Percentage of matches won with this player on your team.
+- **Wins Against:** Percentage of matches won against this player.
+- **Demos Given / Received:** Number of times you demolished this player and that this player has demolished you.
 - **Rivalry Score:** A calculated score indicating the intensity of your rivalry with this player.
 
 ### Customization Options
