@@ -112,8 +112,8 @@ void RocketLeagueRivals::onLoad() {
     LogToFile("Attempting to hook into match start event");
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function GameEvent_Soccar_TA.Active.StartRound", std::bind(&RocketLeagueRivals::OnRoundStart, this, std::placeholders::_1));
     LogToFile("Attempting to hook into match end event");
-    gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.AchievementSystem_TA.CheckWonMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this, std::placeholders::_1));
-    gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxShell_TA.LeaveMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this, std::placeholders::_1));
+    gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.AchievementSystem_TA.CheckWonMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this));
+    gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxShell_TA.LeaveMatch", std::bind(&RocketLeagueRivals::OnMatchEnded, this));
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent", std::bind(&RocketLeagueRivals::KeepScore, this, std::placeholders::_1, std::placeholders::_2));
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxHUD_TA.HandleStatTickerMessage", std::bind(&RocketLeagueRivals::OnStatTickerMessage, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     gameWrapper->RegisterDrawable(std::bind(&RocketLeagueRivals::Render, this, std::placeholders::_1));
@@ -182,6 +182,13 @@ std::string RocketLeagueRivals::SanitizeFileName(const std::string& filename) {
 void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
     matchStarted = true;
 
+    int timeRemaing = server.GetSecondsRemaining();
+    
+    if (timeRemaing == 300 && activePlayers.size() > 0) {
+        LogToFile("Clearing last games active players");
+        OnMatchEnded();
+    }
+
     LogToFile("Match started");
     if (server.IsNull()) {
         LogToFile("Server is null");
@@ -245,11 +252,11 @@ void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
     }
 }
 
-void RocketLeagueRivals::OnMatchEnded(ServerWrapper server) {
+void RocketLeagueRivals::OnMatchEnded() {
     matchStarted = false;
 
     LogToFile("Match ended");
-    bool won = DidWin(server);
+    bool won = DidWin();
 
     for (auto& [name, player] : activePlayers) {
         if (name == localPlayerName) {
@@ -320,12 +327,7 @@ void RocketLeagueRivals::KeepScore(ServerWrapper caller, void* params) {
     LogToFile("Goal scored! Team 0: " + std::to_string(scores.team0Score) + " Team 1: " + std::to_string(scores.team1Score));
 }
 
-bool RocketLeagueRivals::DidWin(ServerWrapper server) {
-    if (server.IsNull()) {
-        LogToFile("Server is null");
-        return false;
-    }
-
+bool RocketLeagueRivals::DidWin() {
     int localTeam = myTeam;
 
     bool won = (localTeam == 0 && scores.team0Score > scores.team1Score) || (localTeam == 1 && scores.team1Score > scores.team0Score);
