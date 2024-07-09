@@ -64,11 +64,11 @@ private:
     const std::tuple<int, int, int, int> orangeColor = { 255, 165, 0, 255 };
 
     void OnRoundStart(ServerWrapper server);
-    void OnMatchEnded(ServerWrapper server);
+    void OnMatchEnded();
     void Render(CanvasWrapper canvas);
     void ReadJSON();
     void WriteJSON();
-    bool DidWin(ServerWrapper server);
+    bool DidWin();
     void KeepScore(ServerWrapper server, void* params);
     void OnStatTickerMessage(ServerWrapper caller, void* params, std::string eventname);
     void RecordDemo(const std::string& receiverName, const std::string& victimName);
