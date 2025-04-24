@@ -57,6 +57,7 @@ void RocketLeagueRivals::RenderSettings() {
     renderCheckbox("Show demo stats", "show_demo_stats_enabled", "Shows stats on demos received and given to and from another player.");
     renderCheckbox("Show rival stats", "show_rival_stats_enabled", "Shows rival stats on another player another player.");
     renderInputStringBox("Set Rival Threshold Score 1-99", "set_rival_number", "Sets the points value that would quantify someone as a rival.", 25);
+    renderCheckbox("Only render when scoreboard is open", "render_on_scoreboard_only", "Overlay only appears while the in-game scoreboard (Tab) is held");
     CVarWrapper rivalNumberInput = cvarManager->getCvar("set_rival_number");
     std::string rivalNumberString = rivalNumberInput.getStringValue();
     std::stringstream geek;

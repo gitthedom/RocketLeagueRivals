@@ -102,3 +102,4 @@ nbproject/private/
 /plugins
 RocketLeagueRivals/version.h
 /vcpkg_installed
+*nlohmann

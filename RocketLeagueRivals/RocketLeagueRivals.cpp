@@ -108,6 +108,7 @@ void RocketLeagueRivals::onLoad() {
     registerAndBindBoolCvar("show_demo_stats_enabled", "0", "Enable Demo Stats", showDemoStatsEnabled);
     registerAndBindBoolCvar("show_rival_stats_enabled", "1", "Enable Rival Stats", showRivalStatsEnabled);
     registerAndBindStringCvar("set_rival_number", "3", "Enable Demo Stats", rivalNumberString);
+    registerAndBindBoolCvar("render_on_scoreboard_only", "0", "Only render overlay while the Rocket League scoreboard is open", renderOnScoreboardOnly);
 
     LogToFile("RocketLeagueRivals plugin loaded");
 
@@ -119,6 +120,8 @@ void RocketLeagueRivals::onLoad() {
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent", std::bind(&RocketLeagueRivals::KeepScore, this, std::placeholders::_1, std::placeholders::_2));
     gameWrapper->HookEventWithCaller<ServerWrapper>("Function TAGame.GFxHUD_TA.HandleStatTickerMessage", std::bind(&RocketLeagueRivals::OnStatTickerMessage, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     gameWrapper->RegisterDrawable(std::bind(&RocketLeagueRivals::Render, this, std::placeholders::_1));
+    gameWrapper->HookEvent("Function TAGame.GFxData_GameEvent_TA.OnOpenScoreboard", [this](std::string) { scoreboardVisible = true; });
+    gameWrapper->HookEvent("Function TAGame.GFxData_GameEvent_TA.OnCloseScoreboard", [this](std::string) { scoreboardVisible = false; });
 }
 
 void RocketLeagueRivals::onUnload() {
@@ -129,6 +132,8 @@ void RocketLeagueRivals::onUnload() {
     gameWrapper->UnhookEvent("Function TAGame.GFxShell_TA.LeaveMatch");
     gameWrapper->UnhookEvent("Function TAGame.GameEvent_Soccar_TA.TriggerGoalScoreEvent");
     gameWrapper->UnhookEvent("Function TAGame.GFxHUD_TA.HandleStatTickerMessage");
+    gameWrapper->UnhookEvent("Function TAGame.GFxData_GameEvent_TA.OnOpenScoreboard");
+    gameWrapper->UnhookEvent("Function TAGame.GFxData_GameEvent_TA.OnCloseScoreboard");
 }
 
 void RocketLeagueRivals::ReadJSON() {
@@ -342,6 +347,11 @@ bool RocketLeagueRivals::DidWin() {
 
 void RocketLeagueRivals::Render(CanvasWrapper canvas) {
     ServerWrapper server = gameWrapper->GetCurrentGameState();
+
+    if (renderOnScoreboardOnly && !scoreboardVisible) {
+        return;
+    }
+
     if (!server) {
         return;
     }
