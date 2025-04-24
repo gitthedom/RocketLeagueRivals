@@ -49,6 +49,7 @@ void RocketLeagueRivals::RenderSettings() {
     };
 
     renderCheckbox("Align display to the right", "align_display_right", "Align display to the right (Defaults to left)");
+    renderCheckbox("Shows percentage instead of ratio", "show_percentage_enabled", "Shows your win percentage instead of your win:loss ratio");
     renderCheckbox("Hides your teams stats", "hide_my_team_enabled", "Hides stats from your own team. You would only see Rival team if it is enabled.");
     renderCheckbox("Hides rival teams stats", "hide_rival_team_enabled", "Hides stats from Rival team. You would only see your team if it is enabled.");
     renderCheckbox("Show team stats", "show_team_stats_enabled", "Shows only the current team stats. Only win percentage of games where they were on the corresponding team.");

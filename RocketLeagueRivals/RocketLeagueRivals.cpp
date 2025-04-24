@@ -30,6 +30,7 @@ bool showAllWinsLosesStatsEnabled = false;
 bool showTeamStatsEnabled = false;
 bool showDemoStatsEnabled = false;
 bool showRivalStatsEnabled = true;
+bool showWinPercentageInsteadOfRatio = true;
 std::string rivalNumberString = "3";
 
 void LogToFile(const std::string& message) {
@@ -99,6 +100,7 @@ void RocketLeagueRivals::onLoad() {
 
     registerAndBindBoolCvar("align_display_right", "0", "Enable Right Side Render", rightAlignEnabled);
     registerAndBindBoolCvar("folder_logging_enabled", "0", "Enable Logging", loggingEnabled);
+    registerAndBindBoolCvar("show_percentage_enabled", "1", "Enable_Win_Percentage", showWinPercentageInsteadOfRatio);
     registerAndBindBoolCvar("hide_my_team_enabled", "0", "Enable Hiding My Team", hideMyTeamEnabled);
     registerAndBindBoolCvar("hide_rival_team_enabled", "0", "Enable Hiding Rival Team", hideRivalTeamEnabled);
     registerAndBindBoolCvar("show_all_winsloses_stats_enabled", "0", "Enable Show All Wins/Loses Stats", showAllWinsLosesStatsEnabled);
@@ -418,9 +420,14 @@ void RocketLeagueRivals::DrawHeader(CanvasWrapper& canvas, const std::string& te
     yOffset += config.headerHeight + config.padding * 2;
 }
 
-void DrawStat(CanvasWrapper& canvas, const std::string& label, float statValue, int x, int& y, float fontSize, float fontScale, const std::tuple<int, int, int, int>& color, int lineHeight) {
+void DrawStat(CanvasWrapper& canvas, const std::string& label, float statValue, int wins, int losses, int x, int& y, float fontSize, float fontScale, const std::tuple<int, int, int, int>& color, int lineHeight, bool showWinPercentageInsteadOfRatio) {
     std::stringstream ss;
-    ss << label << ": " << std::fixed << std::setprecision(1) << statValue << "%";
+    if (showWinPercentageInsteadOfRatio) {
+        ss << label << ": " << std::fixed << std::setprecision(1) << statValue << "%";
+    }
+    else {
+        ss << label << ": " << wins << " / " << losses;
+    }
     DrawText(canvas, ss.str(), x, y, fontSize, fontScale, color);
 }
 
@@ -507,7 +514,7 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas, const PlayerInfo&
         float totalWithGames = static_cast<float>(player.winsWith + player.lossesWith);
         float winWithPercentage = totalWithGames == 0 ? 0 : (player.winsWith / totalWithGames) * 100.0f;
         auto color = GetStatColor(player.winsWith, player.lossesWith, neutralColor, lightBlueColor, orangeColor);
-        DrawStat(canvas, "Won with", winWithPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
+        DrawStat(canvas, "Won with", winWithPercentage, player.winsWith, player.lossesWith, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight, showWinPercentageInsteadOfRatio);
     }
 
     if (showAllWinsLosesStatsEnabled || (!isMyTeam && showTeamStatsEnabled)) {
@@ -515,7 +522,7 @@ void RocketLeagueRivals::DrawPlayerInfo(CanvasWrapper& canvas, const PlayerInfo&
         float totalAgainstGames = static_cast<float>(player.winsAgainst + player.lossesAgainst);
         float winAgainstPercentage = totalAgainstGames == 0 ? 0 : (player.winsAgainst / totalAgainstGames) * 100.0f;
         auto color = GetStatColor(player.winsAgainst, player.lossesAgainst, neutralColor, { 0, 255, 0, 255 }, redColor);
-        DrawStat(canvas, "Won against", winAgainstPercentage, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight);
+        DrawStat(canvas, "Won against", winAgainstPercentage, player.winsAgainst, player.lossesAgainst, xOffset + 10, yOffset, config.statFontSize, config.statFontScale, color, config.lineHeight, showWinPercentageInsteadOfRatio);
     }
 
     yOffset += config.lineHeight + config.padding;
