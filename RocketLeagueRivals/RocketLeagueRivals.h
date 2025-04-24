@@ -57,6 +57,8 @@ private:
     bool hideMyTeamEnabled = false;
     bool hideRivalTeamEnabled = false;
     bool showAllStatsEnabled = false;
+    bool renderOnScoreboardOnly = false;
+    bool scoreboardVisible = false;
 
     const std::tuple<int, int, int, int> neutralColor = { 255, 255, 255, 255 };
     const std::tuple<int, int, int, int> lightBlueColor = { 56, 142, 235, 255 };

@@ -49,6 +49,7 @@ void RocketLeagueRivals::RenderSettings() {
     };
 
     renderCheckbox("Align display to the right", "align_display_right", "Align display to the right (Defaults to left)");
+    renderCheckbox("Shows percentage instead of ratio", "show_percentage_enabled", "Shows your win percentage instead of your win:loss ratio");
     renderCheckbox("Hides your teams stats", "hide_my_team_enabled", "Hides stats from your own team. You would only see Rival team if it is enabled.");
     renderCheckbox("Hides rival teams stats", "hide_rival_team_enabled", "Hides stats from Rival team. You would only see your team if it is enabled.");
     renderCheckbox("Show team stats", "show_team_stats_enabled", "Shows only the current team stats. Only win percentage of games where they were on the corresponding team.");
@@ -56,6 +57,7 @@ void RocketLeagueRivals::RenderSettings() {
     renderCheckbox("Show demo stats", "show_demo_stats_enabled", "Shows stats on demos received and given to and from another player.");
     renderCheckbox("Show rival stats", "show_rival_stats_enabled", "Shows rival stats on another player another player.");
     renderInputStringBox("Set Rival Threshold Score 1-99", "set_rival_number", "Sets the points value that would quantify someone as a rival.", 25);
+    renderCheckbox("Only render when scoreboard is open", "render_on_scoreboard_only", "Overlay only appears while the in-game scoreboard (Tab) is held");
     CVarWrapper rivalNumberInput = cvarManager->getCvar("set_rival_number");
     std::string rivalNumberString = rivalNumberInput.getStringValue();
     std::stringstream geek;
