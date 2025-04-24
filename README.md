@@ -60,7 +60,7 @@ If you wish to contribute or modify the plugin, here are the instructions to set
 
 1. Clone the repository:
 ```sh
-git clone https://github.com/yourusername/rocketleaguerivals.git
+git clone https://github.com/gitthedom/rocketleaguerivals.git
 ```
 2. Open the project in your preferred IDE.
 3. Make sure to link the BakkesMod SDK to your project.
