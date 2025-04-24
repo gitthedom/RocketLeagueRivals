@@ -7,6 +7,9 @@
 #include "bakkesmod/wrappers/GameObject/CarWrapper.h"
 #include "bakkesmod/wrappers/Engine/EngineTAWrapper.h"
 #include "bakkesmod/wrappers/GameObject/Stats/StatEventWrapper.h"
+#include "bakkesmod/wrappers/GameEvent/ServerWrapper.h"
+#include "bakkesmod/wrappers/GameEvent/ReplayDirectorWrapper.h"
+#include "bakkesmod/wrappers/GameEvent/ReplaySoccarWrapper.h"
 #include <ctime>
 #include <filesystem>
 #include <iostream>
@@ -187,10 +190,11 @@ std::string RocketLeagueRivals::SanitizeFileName(const std::string& filename) {
 }
 
 void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
+
     matchStarted = true;
 
     int timeRemaing = server.GetSecondsRemaining();
-    
+
     if (timeRemaing == 300 && activePlayers.size() > 0) {
         LogToFile("Clearing last games active players");
         OnMatchEnded();
@@ -260,6 +264,11 @@ void RocketLeagueRivals::OnRoundStart(ServerWrapper server) {
 }
 
 void RocketLeagueRivals::OnMatchEnded() {
+    if (gameWrapper->IsInReplay()) {
+        LogToFile("OnMatchEnded skipped because we're in a replay");
+        return;
+    }
+
     matchStarted = false;
 
     LogToFile("Match ended");
@@ -346,75 +355,52 @@ bool RocketLeagueRivals::DidWin() {
 }
 
 void RocketLeagueRivals::Render(CanvasWrapper canvas) {
+    auto localCar = gameWrapper->GetLocalCar();
+    if (localCar.IsNull()) return;
+    auto localPri = localCar.GetPRI();
+    if (localPri.IsNull())  return;
+    const std::string localName = localPri.GetPlayerName().ToString();
+    myTeam = localPri.GetTeamNum();
+
+    if (renderOnScoreboardOnly && !scoreboardVisible) return;
+
     ServerWrapper server = gameWrapper->GetCurrentGameState();
+    if (server.IsNull()) return;
 
-    if (renderOnScoreboardOnly && !scoreboardVisible) {
-        return;
-    }
+    auto cars = server.GetCars();
+    if (cars.IsNull() || cars.Count() == 0) return;
 
-    if (!server) {
-        return;
-    }
+    Vector2 size = canvas.GetSize();
+    int xOff = rightAlignEnabled ? (size.X - 220) : 20;
+    int yOff = size.Y / 2 - ((cars.Count() * 60) / 2);
 
-    auto localPlayer = gameWrapper->GetLocalCar();
-    if (localPlayer.IsNull()) {
-        return;
-    }
-
-    auto localPri = localPlayer.GetPRI();
-    if (localPri.IsNull()) {
-        return;
-    }
-
-    std::string localPlayerName = localPri.GetPlayerName().ToString();
-
-    auto players = server.GetCars();
-    if (players.IsNull()) {
-        return;
-    }
-
-    Vector2 canvasSize = canvas.GetSize();
-    int canvasHeight = canvasSize.Y;
-
-    int xOffset = 20;
-    if (rightAlignEnabled) {
-        xOffset = canvasSize.X - 220;
-    }
-    int yOffset = canvasHeight / 2 - ((players.Count() * 60) / 2);
-
-    std::vector<PlayerInfo> myTeamPlayers;
-    std::vector<PlayerInfo> rivalTeamPlayers;
-
-    for (int i = 0; i < players.Count(); ++i) {
-        auto player = players.Get(i);
-        if (player.IsNull()) continue;
-
-        PriWrapper pri = player.GetPRI();
+    std::vector<PlayerInfo> myTeamPlayers, rivalTeamPlayers;
+    for (int i = 0; i < cars.Count(); ++i) {
+        CarWrapper car = cars.Get(i);
+        if (car.IsNull()) continue;
+        PriWrapper pri = car.GetPRI();
         if (pri.IsNull()) continue;
 
-        std::string playerName = pri.GetPlayerName().ToString();
-        if (playerName == localPlayerName) {
-            continue;
-        }
+        std::string name = pri.GetPlayerName().ToString();
+        if (name == localName) continue;
 
-        if (activePlayers.find(playerName) != activePlayers.end()) {
-            const PlayerInfo& player = activePlayers[playerName];
-            if (player.team == myTeam) {
-                myTeamPlayers.push_back(player);
-            }
-            else {
-                rivalTeamPlayers.push_back(player);
-            }
-        }
+        auto it = activePlayers.find(name);
+        if (it == activePlayers.end()) continue;
+        const PlayerInfo& pi = it->second;
+
+        if (pi.team == myTeam)
+            myTeamPlayers.push_back(pi);
+        else
+            rivalTeamPlayers.push_back(pi);
     }
 
-    if (!hideMyTeamEnabled) {
-        RenderTeam(canvas, "My Team", myTeamPlayers, xOffset, yOffset, true);
-    }
-    if (!hideRivalTeamEnabled) {
-        RenderTeam(canvas, "Rival Team", rivalTeamPlayers, xOffset, yOffset, false);
-    }
+    if (!hideMyTeamEnabled)
+        RenderTeam(canvas, "My Team", myTeamPlayers, xOff, yOff, true);
+    if (!hideRivalTeamEnabled)
+        RenderTeam(canvas, "Rival Team", rivalTeamPlayers, xOff, yOff, false);
 }
+
+
 
 void DrawText(CanvasWrapper& canvas, const std::string& text, int x, int y, float fontSize, float fontScale, const std::tuple<int, int, int, int>& color) {
     canvas.SetColor(std::get<0>(color), std::get<1>(color), std::get<2>(color), std::get<3>(color));
